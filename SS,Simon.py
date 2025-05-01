@@ -15,8 +15,10 @@ SS304.add_element('Fe', 0.6840, 'wo')
 SS304.add_element('Ni', 0.1000, 'wo')
 
 zirconium = openmc.Material(2, "zirconium", temperature=900)
-zirconium.add_element('Zr', 1.0)
+zirconium.add_element('Zr', 1.0, 'wo')
+zirconium.add_element('Sn', 0.015, 'wo')
 zirconium.set_density('g/cm3', 6.6)
+
 
 # ——— Heavy water moderator (D₂O) ———  
 # Density ≈1.1056 g/cm³ at 25 °C :contentReference[oaicite:0]{index=0}  #ved egentlig ikke hvad cooling water temperaturen er 
@@ -26,18 +28,27 @@ D2O.set_density('g/cm3', 1.1056)
 D2O.add_nuclide('H2', 2.0, 'ao')
 D2O.add_nuclide('O16', 1.0, 'ao')
 
-# ——— Fuel: UO₂SO₄ salt dissolved in D₂O ———  
-# Target ≈10 g U per 1 kg D₂O ⇒ U mass fraction ≈0.0099  
-u_wt = 0.0099
-water_wt = 1 - u_wt
+
+g_per_kg = 10.4                             #of uranium to heavy water
+weight_frac = 10.4/1000
+D2O_frac = 235 / (20) / weight_frac
+print(D2O_frac)
+
 fuel = openmc.Material(name='fuel solution')
 fuel.set_density('g/cm3', 1.1056)            # assume same density as pure D₂O
 # heavy‐water fraction ≈1–0.0099=0.9901 by mass  
-fuel.add_nuclide('H2', 2*water_wt, 'wo')
-fuel.add_nuclide('O16', 1*water_wt, 'wo')
+fuel.add_nuclide('H2', D2O_frac * 2, 'ao')
+fuel.add_nuclide('O16', D2O_frac + 6, 'ao')
 # uranium                       
-fuel.add_nuclide('U235', u_wt*0.93, 'wo')       #Bruger highly enriched uranium
-fuel.add_nuclide('U238', u_wt*0.07, 'wo')
+fuel.add_nuclide('U235', 0.93, 'ao')       #Bruger highly enriched uranium
+fuel.add_nuclide('U238', 0.07, 'ao')
+fuel.add_element('S', 1, 'ao')
+
+# fuel.add_elements_from_formula()
+
+
+
+
 
 mats = openmc.Materials([SS304, D2O, zirconium, fuel])
 mats.cross_sections = r'/home/candifloos/Reaktorfysik/Python/RFP/Data/jeff-3.3-hdf5/cross_sections.xml'
@@ -73,16 +84,17 @@ geometry.export_to_xml()
 
 settings = openmc.Settings()
 settings.run_mode = 'eigenvalue'
-settings.batches = 100                 #tror måske 1000 er lidt ekstremt, sørg dog for at ændre nedenstående også hvis det ændres xd
-settings.inactive = 20
+settings.batches = 20
+settings.inactive = 5
 settings.particles = 20000
+settings.temperature['default'] = 600           #close enough
 
 # point‐source at center, isotropic, Watt fission spectrum
-source = openmc.Source()
-source.space = openmc.stats.Point((0, 0, 0))
-source.angle = openmc.stats.Isotropic()
-source.energy = openmc.stats.Watt(a=0.988e6, b=2.249e-6)  # typical U-235
-settings.source = source
+# source = openmc.Source()
+# source.space = openmc.stats.Point((0, 0, 0))
+# source.angle = openmc.stats.Isotropic()
+# source.energy = openmc.stats.Watt(a=0.988e6, b=2.249e-6)  # typical U-235
+# settings.source = source
 
 settings.export_to_xml()
 
