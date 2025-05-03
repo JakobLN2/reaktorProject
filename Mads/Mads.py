@@ -34,6 +34,10 @@ D2O.add_nuclide('H2', 2.0, 'ao')
 D2O.add_nuclide('O16', 1.0, 'ao')
 
 
+"""
+tror du kan tilføje vandet mere clean via .add_elements_from_formula, ikke sikker
+"""
+
 g_per_kg = 10.4                             #of uranium to heavy water
 weight_frac = 10.4/1000
 D2O_frac = 235 / (20) / weight_frac
@@ -47,6 +51,7 @@ fuel.add_nuclide('O16', D2O_frac + 6, 'ao')
 # uranium                       
 fuel.add_nuclide('U235', 0.93, 'ao')       #Bruger highly enriched uranium
 fuel.add_nuclide('U238', 0.07, 'ao')
+#Sulpher
 fuel.add_element('S', 1, 'ao')
 
 # fuel.add_elements_from_formula()
@@ -56,7 +61,8 @@ fuel.add_element('S', 1, 'ao')
 
 
 mats = openmc.Materials([SS304, D2O, zirconium, fuel])
-#mats.cross_sections = r'/home/candifloos/Reaktorfysik/Python/RFP/Data/jeff-3.3-hdf5/cross_sections.xml'
+
+print(mats[3].nuclides[2])
 
 
 clad_inner = openmc.Sphere(r = inches_to_cm(16))
@@ -79,12 +85,69 @@ cell_shield    = openmc.Cell(name='blast shield', fill=SS304, region=blast_shiel
 
 # root universe & geometry
 root_univ = openmc.Universe(cells=[cell_fuel, cell_clad, cell_moderator, cell_shield])  #laver en celle af de celler vi har defineret som man så kan gentage, kinda unødvendigt no?
-geometry = openmc.Geometry(root_univ)                                                   #laver bare en klon af geometrien
+geometry = openmc.Geometry(root_univ)                                                 #laver bare en klon af geometrien
+
+
+def changeEnrichmentOfMat(enrichment,baseMaterial,percentFuel = 1):
+    """
+    Function to change the enrichment of uranium in the given cell
+
+    Arguments:
+        cell: the cell to change the fuel in
+
+        enrichment: The enrichment in weight percent.
+    """
+    #Clone the base material, so we don't do anything stupid
+    ourMat = baseMaterial
+    #Add our new enrichment
+    ourMat.remove_element("U")
+    ourMat.add_nuclide('U235', enrichment/100., 'ao')       #Bruger highly enriched uranium
+    ourMat.add_nuclide('U238', 1-enrichment/100., 'ao')
+    #ourMat.add_element("U",percent=percentFuel,percent_type="ao",enrichment=enrichment)
+    return ourMat
+
+
+def kEffAtEnrichment(model,enrichments,fuelId):
+    """
+    Arguments:
+        Enrichments:   Liste af enrichments man vil finde k eff af
+
+        model:    Base model vi bruger; OBS: funktionen ændre på den
+    Returns:
+        keffs for all the given **enrichments**
+    """
+    kEffs = np.zeros(len(enrichments))
+    kEffstds = np.zeros(len(enrichments))
+
+
+    for i,enrich in enumerate(enrichments):
+        print("Current step: ", i)
+        model.materials[fuelId] = changeEnrichmentOfMat(enrich,model.materials[fuelId])
+        #print(model.materials[fuelId])
+        
+        sp_path = model.run()                        #at den returnerer en path has to be retarded
+        
+        with openmc.StatePoint(sp_path) as sp:
+            k_eff = sp.keff
+            
+            # k_avg = sp.keff[0].mean
+
+            keff_var = sp.keff
+
+            # Extract nominal value and uncertainty
+            kEffs[i] = keff_var.nominal_value   # or keff_var.n
+            kEffstds[i]  = keff_var.std_dev          # or keff_var.s
+    return kEffs, kEffstds
+
+
+
+
+
 geometry.export_to_xml()
 
+root_univ.plot()
 
-
-
+plt.savefig("git/reaktorProject/Mads/testfig2")
 
 
 settings = openmc.Settings()
@@ -117,6 +180,18 @@ model = openmc.model.Model(
     tallies=openmc.Tallies([tally])
 )
 
+enrichments = np.linspace(0,100,100) #Got a wierd bug where it couldn't handle 
+
+kEffs, stdKEffs = kEffAtEnrichment(model,enrichments,3)
+fig,ax = plt.subplots(1,1)
+ax.errorbar(enrichments,kEffs,yerr=stdKEffs)
+
+np.savetxt("git/reaktorProject/Mads/Keffs",[enrichments,kEffs,stdKEffs]) #Save the data, so we can make a nice looking plot without having to run the entire simulation again.
+
+fig.savefig("git/reaktorProject/Mads/testfig3")
+
+
+"""
 # run and capture summary   
 sp_path = model.run()                           #at den returnerer en path has to be retarded
 sp = openmc.StatePoint(sp_path)
@@ -153,4 +228,5 @@ plt.title('Convergence of k-effective (cumulative average)')
 plt.grid(True)
 
 plt.savefig("git/reaktorProject/Mads/testfig1")
+"""
 plt.show()
