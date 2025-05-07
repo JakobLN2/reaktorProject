@@ -1,0 +1,83 @@
+<?xml version='1.0' encoding='utf-8'?>
+<model>
+  <materials>
+    <cross_sections>/home/jakobln/devel/projects/reaktorfysik/data/jeff-3.3-hdf5/cross_sections.xml</cross_sections>
+    <material id="1" name="SS304">
+      <density units="g/cc" value="8.03"/>
+      <nuclide name="Si28" wo="0.005512411036970206"/>
+      <nuclide name="Si29" wo="0.00028990501756718373"/>
+      <nuclide name="Si30" wo="0.00019768394546261053"/>
+      <nuclide name="Cr50" wo="0.007930004583164795"/>
+      <nuclide name="Cr52" wo="0.1590287884675572"/>
+      <nuclide name="Cr53" wo="0.01837981495548285"/>
+      <nuclide name="Cr54" wo="0.004661391993795167"/>
+      <nuclide name="Mn55" wo="0.02"/>
+      <nuclide name="Fe54" wo="0.03861561824331489"/>
+      <nuclide name="Fe56" wo="0.6286064568522073"/>
+      <nuclide name="Fe57" wo="0.014776921317534514"/>
+      <nuclide name="Fe58" wo="0.0020010035869434425"/>
+      <nuclide name="Ni58" wo="0.0671977052965899"/>
+      <nuclide name="Ni60" wo="0.026775962899229563"/>
+      <nuclide name="Ni61" wo="0.0011833590852967102"/>
+      <nuclide name="Ni62" wo="0.0038348223034871697"/>
+      <nuclide name="Ni64" wo="0.00100815041539667"/>
+    </material>
+    <material id="2" name="zirconium" temperature="900">
+      <density units="g/cm3" value="6.6"/>
+      <nuclide name="Zr90" wo="0.5070611750923316"/>
+      <nuclide name="Zr91" wo="0.11180887453100784"/>
+      <nuclide name="Zr92" wo="0.1727810146362816"/>
+      <nuclide name="Zr94" wo="0.17891104342343414"/>
+      <nuclide name="Zr96" wo="0.029437892316944894"/>
+      <nuclide name="Sn112" wo="0.00013715892931965404"/>
+      <nuclide name="Sn114" wo="9.499085572042323e-05"/>
+      <nuclide name="Sn115" wo="4.936454378539518e-05"/>
+      <nuclide name="Sn116" wo="0.002129403252570527"/>
+      <nuclide name="Sn117" wo="0.0011344627635425028"/>
+      <nuclide name="Sn118" wo="0.003608256495100963"/>
+      <nuclide name="Sn119" wo="0.0012905970053650568"/>
+      <nuclide name="Sn120" wo="0.004936075353979278"/>
+      <nuclide name="Sn122" wo="0.0007131822271364948"/>
+      <nuclide name="Sn124" wo="0.0009065085734797057"/>
+    </material>
+    <material id="3" name="heavy water">
+      <density units="g/cm3" value="1.1056"/>
+      <nuclide ao="2.0" name="H2"/>
+      <nuclide ao="1.0" name="O16"/>
+    </material>
+    <material depletable="true" id="4" name="fuel solution">
+      <density units="g/cm3" value="1.1056"/>
+      <nuclide ao="2259.6153846153848" name="H2"/>
+      <nuclide ao="1135.8076923076924" name="O16"/>
+      <nuclide ao="0.93" name="U235"/>
+      <nuclide ao="0.07" name="U238"/>
+      <nuclide ao="0.9504074" name="S32"/>
+      <nuclide ao="0.0074869" name="S33"/>
+      <nuclide ao="0.0419599" name="S34"/>
+      <nuclide ao="0.0001458" name="S36"/>
+    </material>
+  </materials>
+  <geometry>
+    <cell id="1" material="4" name="fuel" region="-1" universe="1"/>
+    <cell id="2" material="2" name="clad (Zr)" region="1 -2" universe="1"/>
+    <cell id="3" material="3" name="moderator" region="2 -3" universe="1"/>
+    <cell id="4" material="1" name="blast shield" region="3 -4" universe="1"/>
+    <surface coeffs="0.0 0.0 0.0 40.64" id="1" type="sphere"/>
+    <surface coeffs="0.0 0.0 0.0 41.43375" id="2" type="sphere"/>
+    <surface coeffs="0.0 0.0 0.0 76.2" id="3" type="sphere"/>
+    <surface boundary="vacuum" coeffs="0.0 0.0 0.0 87.37599999999999" id="4" type="sphere"/>
+  </geometry>
+  <settings>
+    <run_mode>eigenvalue</run_mode>
+    <particles>20000</particles>
+    <batches>20</batches>
+    <inactive>5</inactive>
+    <temperature_default>600</temperature_default>
+  </settings>
+  <tallies>
+    <tally id="1" name="keff">
+      <scores>kappa-fission</scores>
+      <estimator>analog</estimator>
+    </tally>
+  </tallies>
+</model>

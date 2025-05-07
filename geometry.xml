@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<geometry>
+  <cell id="1" material="4" name="fuel" region="-1" universe="1"/>
+  <cell id="2" material="2" name="clad (Zr)" region="1 -2" universe="1"/>
+  <cell id="3" material="3" name="moderator" region="2 -3" universe="1"/>
+  <cell id="4" material="1" name="blast shield" region="3 -4" universe="1"/>
+  <surface coeffs="0.0 0.0 0.0 40.64" id="1" type="sphere"/>
+  <surface coeffs="0.0 0.0 0.0 41.43375" id="2" type="sphere"/>
+  <surface coeffs="0.0 0.0 0.0 76.2" id="3" type="sphere"/>
+  <surface boundary="vacuum" coeffs="0.0 0.0 0.0 87.37599999999999" id="4" type="sphere"/>
+</geometry>
