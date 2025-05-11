@@ -2,11 +2,38 @@ import openmc
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-
+import matplotlib
 
 """
 Fandt ud af at du bare kan gøre det her, så er openmc configered til at tage de korrekte cross section files
 """
+
+
+import scipy.interpolate as scint
+
+
+matplotlib.use('webagg')
+def inches_to_cm(inches):
+    return inches * 2.54
+
+#Small table - Below 275 C
+T = np.loadtxt(r"git/reaktorProject/russianWater.txt",max_rows=1)
+P = np.loadtxt(r"git/reaktorProject/russianWater.txt",usecols=[0],skiprows=1)
+data = np.loadtxt(r"git/reaktorProject/russianWater.txt",skiprows=1,usecols=range(1,len(T)+1))
+f_1 = scint.RegularGridInterpolator((P,T), data, method="linear")
+
+#Russian table - above or equal 275 C
+T = np.loadtxt(r"git/reaktorProject/russianWater.txt",max_rows=1)
+P = np.loadtxt(r"git/reaktorProject/russianWater.txt",usecols=[0],skiprows=1)*0.9807 # Convert to bar
+data = np.loadtxt(r"git/reaktorProject/russianWater.txt",skiprows=1,usecols=range(1,len(T)+1))
+f_2 = scint.RegularGridInterpolator((P,T), data, method="linear")
+rho_2 = lambda P,T: 1/f_2((P,T))
+
+rho = lambda P,T: f_1((P,T))/1000 if T < 275 else rho_2(P,T)
+
+
+
+
 openmc.config["cross_sections"] = "jeff-3.3-hdf5/cross_sections.xml"
 def inches_to_cm(inches):
     return inches * 2.54
@@ -27,6 +54,10 @@ zirconium.set_density('g/cm3', 6.6)
 
 # ——— Heavy water moderator (D₂O) ———  
 # Density ≈1.1056 g/cm³ at 25 °C :contentReference[oaicite:0]{index=0}  #ved egentlig ikke hvad cooling water temperaturen er 
+
+T= 600
+P = 150
+
 D2O = openmc.Material(name='heavy water')
 D2O.set_density('g/cm3', 1.1056)
 # use nuclide H2 for deuterium and O16 for oxygen  
@@ -38,13 +69,25 @@ D2O.add_nuclide('O16', 1.0, 'ao')
 tror du kan tilføje vandet mere clean via .add_elements_from_formula, ikke sikker
 """
 
+"""
+
+"""
+
+
+"""
+Assume density of water isn't impacted by uranium dissolved in it
+"""
+
+T= 300
+P = 300
+
 g_per_kg = 10.4                             #of uranium to heavy water
 weight_frac = 10.4/1000
 D2O_frac = 235 / (20) / weight_frac
 print(D2O_frac)
 
 fuel = openmc.Material(name='fuel solution')
-fuel.set_density('g/cm3', 1.1056)            # assume same density as pure D₂O
+fuel.set_density('g/cm3', rho(P,T))            # assume same density as pure D₂O
 # heavy‐water fraction ≈1–0.0099=0.9901 by mass  
 fuel.add_nuclide('H2', D2O_frac * 2, 'ao')
 fuel.add_nuclide('O16', D2O_frac + 6, 'ao')
@@ -88,12 +131,32 @@ root_univ = openmc.Universe(cells=[cell_fuel, cell_clad, cell_moderator, cell_sh
 geometry = openmc.Geometry(root_univ)                                                 #laver bare en klon af geometrien
 
 
-def changeEnrichmentOfMat(enrichment,baseMaterial,percentFuel = 1):
+def changeUraniumInMat(baseMaterial,concentration,Enrichment):
     """
-    Function to change the enrichment of uranium in the given cell
+    Function to change the USO4 concentration and enrichment in material
 
     Arguments:
-        cell: the cell to change the fuel in
+        baseMaterial: the material to change the enrichment/concentration in
+
+        Enrichment: then enrichment percent.
+
+        concentration: The concentration in g pr L urainum.
+    """
+    #Clone the base material, so we don't do anything stupid
+    ourMat = baseMaterial
+    #Add our new enrichment
+    ourMat.remove_element("U")
+    ourMat.add_nuclide('U235', concentration/100., 'ao')       #Bruger highly enriched uranium
+    ourMat.add_nuclide('U238', 1-concentration/100., 'ao')
+    #ourMat.add_element("U",percent=percentFuel,percent_type="ao",enrichment=enrichment)
+    return ourMat
+
+def changeEnrichmentOfMat(enrichment,baseMaterial):
+    """
+    Function to change the enrichment of uranium in the given material
+
+    Arguments:
+        baseMaterial: the material to change the enrichment in
 
         enrichment: The enrichment in weight percent.
     """
@@ -180,7 +243,7 @@ model = openmc.model.Model(
     tallies=openmc.Tallies([tally])
 )
 
-enrichments = np.linspace(0,100,100) #Got a wierd bug where it couldn't handle 
+enrichments = np.linspace(0,100,1) #Got a wierd bug where it couldn't handle 
 
 kEffs, stdKEffs = kEffAtEnrichment(model,enrichments,3)
 fig,ax = plt.subplots(1,1)
@@ -188,7 +251,7 @@ ax.errorbar(enrichments,kEffs,yerr=stdKEffs)
 
 np.savetxt("git/reaktorProject/Mads/Keffs",[enrichments,kEffs,stdKEffs]) #Save the data, so we can make a nice looking plot without having to run the entire simulation again.
 
-fig.savefig("git/reaktorProject/Mads/testfig3")
+fig.savefig("git/reaktorProject/Mads/keffvsEnrichmentDebug")
 
 
 """
