@@ -64,7 +64,8 @@ fuel.add_element('S', 1, 'ao')
 
 
 
-
+mats = openmc.Materials([SS304, D2O, zirconium, fuel])
+mats.cross_sections = r'/home/jakobln/devel/projects/reaktorfysik/data/jeff-3.3-hdf5/cross_sections.xml'
 
 
 clad_inner = openmc.Sphere(r = inches_to_cm(16))
@@ -91,20 +92,19 @@ T_grad = lambda y: (y - b) * (300 - 256)/(t - b) + 256
 
 ys = np.linspace(b,t,N+1, endpoint=True)
 splits = [openmc.YPlane(y,boundary_type="transmission") for y in ys]
-fuel_regions = [0]*N; fuel_cells = [0]*N; fuels = [0]*N
+fuel_regions = [0]*N; fuel_cells = [0]*N
 for i in range(N):
     t_i = T_grad(0.5*(t - b)/N + ys[i])
-    fuels[i] = fuel.clone()
-    fuels[i].set_density('g/cm3', rho(100,t_i))
+    fuel_i = fuel.clone()
+    fuel_i.set_density('g/cm3', rho(100,t_i))
     fuel_regions[i] = -clad_inner & +splits[i] & -splits[i + 1]
-    fuel_cells[i] = openmc.Cell(name=f'fuel{i}', fill=fuels[i], region=fuel_regions[i])
+    fuel_cells[i] = openmc.Cell(name=f'fuel{i}', fill=fuel, region=fuel_regions[i])
     
-mats = openmc.Materials([SS304, D2O, zirconium, *fuels])
-mats.cross_sections = r'/home/jakobln/devel/projects/reaktorfysik/data/jeff-3.3-hdf5/cross_sections.xml'
 
 
-# fuel_region = -clad_inner                                  #~10 g U per kg D2O, UO_2SO_4 in heavy water?
-# cell_fuel      = openmc.Cell(name='fuel', fill=fuel, region=fuel_region)
+
+fuel_region = -clad_inner                                  #~10 g U per kg D2O, UO_2SO_4 in heavy water?
+cell_fuel      = openmc.Cell(name='fuel', fill=fuel, region=fuel_region)
 
 core_vessel = +clad_inner & -clad_outer                    #zirconium alloy
 moderator_region = +clad_outer & -PV_inner                 #Heavy water
@@ -116,8 +116,8 @@ cell_moderator = openmc.Cell(name='moderator', fill=D2O, region=moderator_region
 cell_shield    = openmc.Cell(name='blast shield', fill=SS304, region=pressure_vessel)
 
 # root universe & geometry
-# root_univ = openmc.Universe(cells=[cell_fuel, cell_clad, cell_moderator, cell_shield])  #laver en celle af de celler vi har defineret som man så kan gentage, kinda unødvendigt no?
-root_univ = openmc.Universe(cells=[*fuel_cells, cell_clad, cell_moderator, cell_shield]) 
+root_univ = openmc.Universe(cells=[cell_fuel, cell_clad, cell_moderator, cell_shield])  #laver en celle af de celler vi har defineret som man så kan gentage, kinda unødvendigt no?
+# root_univ = openmc.Universe(cells=[*fuel_cells, cell_clad, cell_moderator, cell_shield]) 
 geometry = openmc.Geometry(root_univ)                                                   #laver bare en klon af geometrien
 geometry.export_to_xml()
 
