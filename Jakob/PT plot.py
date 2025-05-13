@@ -4,18 +4,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
 import scipy.interpolate as scint
-matplotlib.use('webagg')
 
 #Small table - Below 275 C
-T = np.loadtxt(r"/home/jakobln/devel/projects/reaktorfysik/reaktorProject/Jakob/badWater.txt",max_rows=1)
-P = np.loadtxt(r"/home/jakobln/devel/projects/reaktorfysik/reaktorProject/Jakob/badWater.txt",usecols=[0],skiprows=1)
-data = np.loadtxt(r"/home/jakobln/devel/projects/reaktorfysik/reaktorProject/Jakob/badWater.txt",skiprows=1,usecols=range(1,len(T)+1))
+path = r'/home/candifloos/Reaktorfysik/reaktorProject/Jakob//'
+T = np.loadtxt(path + 'badWater.txt',max_rows=1)
+P = np.loadtxt(path + 'badWater.txt',usecols=[0],skiprows=1)
+data = np.loadtxt(path + 'badWater.txt',skiprows=1,usecols=range(1,len(T)+1))
 f_1 = scint.RegularGridInterpolator((P,T), data, method="linear")
 
 #Russian table - above or equal 275 C
-T = np.loadtxt(r"/home/jakobln/devel/projects/reaktorfysik/reaktorProject/Jakob/russianWater.txt",max_rows=1)
-P = np.loadtxt(r"/home/jakobln/devel/projects/reaktorfysik/reaktorProject/Jakob/russianWater.txt",usecols=[0],skiprows=1) * 0.9807
-data = np.loadtxt(r"/home/jakobln/devel/projects/reaktorfysik/reaktorProject/Jakob/russianWater.txt",skiprows=1,usecols=range(1,len(T)+1))
+T = np.loadtxt(path + 'russianWater.txt',max_rows=1)
+P = np.loadtxt(path + 'russianWater.txt',usecols=[0],skiprows=1)
+data = np.loadtxt(path + 'russianWater.txt',skiprows=1,usecols=range(1,len(T)+1))
 f_2 = scint.RegularGridInterpolator((P,T), data, method="linear")
 rho_2 = lambda P,T: 1/f_2((P,T))
 
