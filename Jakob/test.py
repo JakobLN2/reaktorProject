@@ -10,13 +10,17 @@
 # arr = [0] * 2
 # print(arr)
 
+# import numpy as np
+# N = 4
+# b = -5; t = 5
+# ls = np.linspace(b,t,N+1, endpoint=True)
+# T_grad = lambda y: (y - b) * (300 - 256)/(t - b) + 256
+# print(ls)
+# Ts_mid = [0]*N
+# for i in range(N):
+#     Ts_mid[i] = T_grad(1/2*(t - b)/N+ls[i])
+# print(Ts_mid)
+
 import numpy as np
-N = 4
-b = -5; t = 5
-ls = np.linspace(b,t,N+1, endpoint=True)
-T_grad = lambda y: (y - b) * (300 - 256)/(t - b) + 256
-print(ls)
-Ts_mid = [0]*N
-for i in range(N):
-    Ts_mid[i] = T_grad(1/2*(t - b)/N+ls[i])
-print(Ts_mid)
+x,y = np.array([(0,1) for i in range(3)]).T
+print(x, y)

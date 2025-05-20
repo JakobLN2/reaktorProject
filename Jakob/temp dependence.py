@@ -47,7 +47,7 @@ zirconium.add_element('Sn', 0.015, 'wo')
 zirconium.set_density('g/cm3', 6.6)
 
 
-def makeGeometry(T):
+def makeGeometry(P, T):
         
     # ——— Heavy water moderator (D₂O) ———  
     D2O = openmc.Material(name='heavy water')
@@ -62,7 +62,7 @@ def makeGeometry(T):
     D2O_frac = 235 / (20) / weight_frac
 
     fuel = openmc.Material(name='fuel solution')
-    fuel.set_density('g/cm3', rho(100, T))
+    fuel.set_density('g/cm3', rho(P, T))
     fuel.add_nuclide('H2', D2O_frac * 2, 'ao')
     fuel.add_nuclide('O16', D2O_frac + 6, 'ao')
 
@@ -95,8 +95,8 @@ def makeGeometry(T):
 
     return openmc.Geometry(root_univ), mats
 
-def makeModel(T):
-    geometry, mats = makeGeometry(T)
+def makeModel(P, T):
+    geometry, mats = makeGeometry(P, T)
     geometry.export_to_xml()
 
     settings = openmc.Settings()
@@ -120,8 +120,8 @@ def makeModel(T):
     )
     return model
 
-def keff_T(T):
-    model = makeModel(T)
+def keff_T(P, T):
+    model = makeModel(P, T)
 
     sp_path = model.run()
     sp = openmc.StatePoint(sp_path)
@@ -137,13 +137,29 @@ def keff_T(T):
 
 
 
-ts = np.linspace(20, 400, 5)
-k_effs = np.array([keff_T(t)[0] for t in ts])
+ts = np.linspace(120, 400, 29, endpoint=True)
+ps = np.array([50,100,150,170])
 
-fig, ax = plt.subplots()
-ax.set(xlabel = 'Core temperature [$^o$C]', ylabel = 'k-effective', title = 'k-effective temperature dependence')
-ax.plot(ts, k_effs, marker='o', linestyle='-')
-ax.grid(True)
+k_effs = np.zeros((len(ps),len(ts)))
+with open(path + "PT dependence data.txt", "w") as file:
+    file.write("\t" + "\t".join(map(str, ts)))
+    for j,p in enumerate(ps):
+        file.write(f"\n{p}\t")
+        for i,t in enumerate(ts):
+            if(rho(p,t) < 0): 
+                k_effs[j,i] = 0
+            else: 
+                k_effs[j,i] = keff_T(p, t)[0]
+            file.write(f"{k_effs[j,i]:.6f}\t")
+            file.flush()
+
+
+# k_effs = np.array([keff_T(t)[0] for t in ts])
+
+# fig, ax = plt.subplots()
+# ax.set(xlabel = 'Core temperature [$^o$C]', ylabel = 'k-effective', title = 'k-effective temperature dependence')
+# ax.plot(ts, k_effs, marker='o', linestyle='-')
+# ax.grid(True)
 
 
 
