@@ -89,29 +89,7 @@ class InnerGeometry:
 
 
         
-"""
-#Spherical Geometry
 
-#Fuelball, zirc, blanket, steel clad, carbon steel, air, blast shield 
-materialNames = ['fuel', 'zirc', 'blanket', 'steelClad', 'carbSteel', 'air', 'blastShield']
-ballDiameters = inches_to_cm(np.asarray([32,32+10/16,60,60+0.4*2,60+0.4*2+4.4*2,74,74+2*(1+5/8)]))
-ballRadii = ballDiameters/2
-spheres = []
-for i in range(len(ballDiameters)):
-    spheres.append(openmc.Sphere(r=ballRadii[i]))
-
-
-#Cylindrical Geometry
-
-cylinderTopRadii = inches_to_cm(np.asarray([4,4+5/16,4+5/16+0.4]))
-topCylinders = []
-for i in range(len(cylinderTopRadii)):
-    topCylinders.append(openmc.ZCylinder(r=cylinderTopRadii[i], z0=inches_to_cm(12*5+10)))
-
-
-#fuel geometry
-fuelRegion = openmc.Sphere()
-"""
 rBall = inches_to_cm(16)
 coreInlet = inches_to_cm(3.5/2)#Think they were referencing diameter
 coreOutlet = inches_to_cm(4/2)
@@ -157,12 +135,17 @@ rblastShield = rAir+inches_to_cm((1+5/8))
 blastShieldGeometry = -openmc.Sphere(r=rblastShield)
 blastShieldRegion = blastShieldGeometry & (~airRegion) & (~blanketRegion) & (~steelCladRegion) & (~carbSteelRegion) & (~fuelRegion) & (~zircRegion)
 
+vacuumBound = -openmc.ZCylinder(r=rblastShield+0.1,boundary_type='vacuum')&+openmc.ZPlane(z0=-fuelGeometry.hBottom-0.1,boundary_type='vacuum')&-openmc.ZPlane(z0=fuelGeometry.hTop+0.1,boundary_type='vacuum') #Big cylinder of vacuum around the whole thing
+vacuumRegion = vacuumBound & (~airRegion) & (~blanketRegion) & (~steelCladRegion) & (~carbSteelRegion) & (~fuelRegion) & (~zircRegion) #Not sure if this is needed or not.
+
+
 D2O = openmc.Material(name='heavy water')
 D2O.set_density('g/cm3', 1.1056)
 # use nuclide H2 for deuterium and O16 for oxygen  
 D2O.add_nuclide('H2', 2.0, 'ao')
 D2O.add_nuclide('O16', 1.0, 'ao')
 
+#stainless steel
 SS304 = openmc.Material(name='SS304')
 SS304.set_density('g/cc', 8.03)
 SS304.add_element('Si', 0.0060, 'wo')
@@ -171,25 +154,56 @@ SS304.add_element('Mn', 0.0200, 'wo')
 SS304.add_element('Fe', 0.6840, 'wo')
 SS304.add_element('Ni', 0.1000, 'wo')
 
-#zirconium = openmc.Material("zirconium")
-#zirconium.add_element('Zr', 1.0, 'wo')
-#zirconium.add_element('Sn', 0.015, 'wo')
-#zirconium.set_density('g/cm3', 6.6)
+
+#Carbon steel, this was available when the reactor was built according to chatgpt so don't trust it too much (it doesn't wanna give me a source though)
+#https://www.azom.com/article.aspx?ArticleID=6772
+S4340 = openmc.Material(name='S4340')
+S4340.set_density('g/cc', 7.85)
+S4340.add_element('C', 0.004, 'wo')
+S4340.add_element('Si', 0.002, 'wo')
+S4340.add_element('Mn', 0.008, 'wo')
+S4340.add_element('P', 0.00035, 'wo')
+S4340.add_element('S', 0.0004, 'wo')
+S4340.add_element('Cr', 0.008, 'wo')
+S4340.add_element('Mo', 0.0025, 'wo')
+S4340.add_element('Ni', 0.02, 'wo')
+S4340.add_element('Fe', 1-0.04525, 'wo') #just manually calculated this, should do something else
 
 
-mats = openmc.Materials([D2O,SS304])
+zirconium = openmc.Material(name="zirconium")
+zirconium.set_density('g/cm3', 6.6)
+zirconium.add_element('Zr', 1.0, 'wo')
+zirconium.add_element('Sn', 0.015, 'wo')
+
+air = openmc.Material(name='air')
+air.set_density('g/cm3', 1.205e-3) #density at room temp
+air.add_element('N', 0.7808, 'wo')
+air.add_element('O', 0.2095, 'wo')
+air.add_element('Ar', 0.0093, 'wo')
+#Ignore the rest.
+#air.add_elements_from_formula('CO2', 0.0004, 'wo')
+
+
+
+
+vacuum = openmc.Material(name='vacuum')
+vacuum.set_density('g/cm3', 1e-50)
+
+mats = openmc.Materials([D2O,SS304,zirconium,S4340,air])
 #mats.export_to_xml()
 # Export the geometry to XML
 
 
 
 cell_fuel      = openmc.Cell(name='fuel', fill=D2O, region=fuelRegion)
-cell_zirc      = openmc.Cell(name='zirc', fill=SS304, region=zircRegion) #TODO Not the right material, but zirconium doesn't wanna play
+cell_zirc      = openmc.Cell(name='zirc', fill=zirconium, region=zircRegion)
 cell_blanket   = openmc.Cell(name='blanket', fill=D2O, region=blanketRegion) 
-cell_steelClad = openmc.Cell(name='steelClad', fill=SS304, region=steelCladRegion) #TODO Not quite the right material
-cell_carbSteel = openmc.Cell(name='carbSteel', fill=SS304, region=carbSteelRegion) #TODO Material is wrong
-cell_air       = openmc.Cell(name='air', fill=D2O, region=airRegion)
-cell_blastShield = openmc.Cell(name='blastShield', fill=SS304, region=blastShieldRegion) #TODO Material is wrong
+cell_steelClad = openmc.Cell(name='steelClad', fill=SS304, region=steelCladRegion) 
+cell_carbSteel = openmc.Cell(name='carbSteel', fill=S4340, region=carbSteelRegion) #TODO Material is wrong
+cell_air       = openmc.Cell(name='air', fill=air, region=airRegion)
+cell_blastShield = openmc.Cell(name='blastShield', fill=S4340, region=blastShieldRegion) #TODO Material is wrong
+
+#cell_vacuum    = openmc.Cell(name='vacuum', fill=vacuum, region=vacuumRegion)
 
 root_univ = openmc.Universe(cells=[cell_fuel,cell_zirc,cell_blanket,cell_steelClad,cell_carbSteel,cell_air,cell_blastShield])
 geometry = openmc.Geometry(root_univ)
@@ -197,14 +211,24 @@ geometry = openmc.Geometry(root_univ)
 mats.export_to_xml()
 geometry.export_to_xml()
 
+"""
+plot = openmc.Plot()
+plot.type = "voxel"
+plot.filename = 'voxel_plot'
+plot.width = (hTot, hTot, hTot)
+plot.pixels = (400, 400, 200)
+"""
+
 plot = openmc.Plot()
 plot.filename = 'xy_slice'
+plot.colors = {air:"white",D2O:"lightblue",SS304:"lightgrey",S4340:"grey",zirconium:"black"}
 plot.width = (hTot, hTot)     # Width of plot in cm
 plot.pixels = (4000, 4000)        # Image resolution
 plot.basis = 'xz'               # Slice plane
-
+plot.color_by = 'material'     # Color by material
 plots = openmc.Plots([plot])
 plots.export_to_xml()
 openmc.plot_geometry()
+
 #root_univ.plot()
 #plt.savefig("git/reaktorProject/Mads/testfig3")
