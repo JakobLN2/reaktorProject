@@ -5,7 +5,7 @@ import matplotlib
 import scipy.interpolate as scint
 
 
-matplotlib.use('webagg')
+matplotlib.use('TkAgg')
 def inches_to_cm(inches):
     return inches * 2.54
 
