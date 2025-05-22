@@ -1,8 +1,12 @@
 import openmc
 import numpy as np
-import matplotlib.pyplot as plt
 import matplotlib
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
 import scipy.interpolate as scint
+
+# print("backend:", matplotlib.get_backend())
+# print("interactive:", matplotlib.is_interactive())
 
 
 plt.rc("axes", labelsize=30, titlesize=32)   # skriftstørrelse af xlabel, ylabel og title
@@ -104,10 +108,15 @@ def makeGeometry(weight_frac_old, weight_frac_new, dt, T = 280, avgdensity = Fal
 
     D2O_frac = D2O_frac_new * new_frac + D2O_frac_old * (1 - new_frac)
 
-
+    print(D2O_frac)
 
     fuel = openmc.Material(name='fuel solution')
-    fuel.set_density('g/cm3', rho(100, T))
+    dens_water = rho(120,T)
+    dens_u = 235/D2O_frac /20           #svarer til weight frac, burde være rigtig hvis vi antager at vi bare har vand og så tilføjer uran uden at ændre volumen (ok approks tænker jeg)
+    dens = dens_water + dens_u
+    print(f'{dens_water = }, {dens_u = }, {dens = }')
+
+    fuel.set_density('g/cm3', rho(120, T))
     fuel.add_nuclide('H2', D2O_frac * 2, 'ao')
     fuel.add_nuclide('O16', D2O_frac + 6, 'ao')
 
@@ -118,7 +127,7 @@ def makeGeometry(weight_frac_old, weight_frac_new, dt, T = 280, avgdensity = Fal
 
 
     fuel_old = openmc.Material(name='fuel solution')
-    fuel_old.set_density('g/cm3', rho(100, T))
+    fuel_old.set_density('g/cm3', rho(120, T))
     fuel_old.add_nuclide('H2', D2O_frac_old * 2, 'ao')
     fuel_old.add_nuclide('O16', D2O_frac_old + 6, 'ao')
 
@@ -128,7 +137,7 @@ def makeGeometry(weight_frac_old, weight_frac_new, dt, T = 280, avgdensity = Fal
     
 
     fuel_new = openmc.Material(name='fuel solution')
-    fuel_new.set_density('g/cm3', rho(100, T))
+    fuel_new.set_density('g/cm3', rho(120, T))
     fuel_new.add_nuclide('H2', D2O_frac_new * 2, 'ao')
     fuel_new.add_nuclide('O16', D2O_frac_new + 6, 'ao')
 
@@ -181,9 +190,18 @@ def makeGeometry(weight_frac_old, weight_frac_new, dt, T = 280, avgdensity = Fal
 
     root_univ = openmc.Universe(cells=[cell_fuel_old, cell_fuel_new, cell_clad, cell_moderator, cell_shield]) 
 
-    # root_univ.plot()
+    root_univ.plot()
+    fig = plt.gcf()
+    fig.set_size_inches(16, 8)
+    plt.tight_layout()
+    plt.savefig(savepath + f'Fuel flow geometry dt = {dt}.png', bbox_inches='tight')
 
     return openmc.Geometry(root_univ), mats
+    
+
+    # fig = openmc.plot_geometry()
+    # fig.set_size_inches(12, 8)
+    # fig.tight_layout()
 
 def makeModel(weight_frac_old, weight_frac_new, dt, T = 280, avgdensity = False):
     geometry, mats = makeGeometry(weight_frac_old, weight_frac_new, dt, T, avgdensity)
@@ -191,8 +209,8 @@ def makeModel(weight_frac_old, weight_frac_new, dt, T = 280, avgdensity = False)
 
     settings = openmc.Settings()
     settings.run_mode = 'eigenvalue'
-    settings.batches = 20
-    settings.inactive = 5
+    settings.batches = 50
+    settings.inactive = 20
     settings.particles = 20000
     settings.temperature['default'] = 600
 
@@ -226,24 +244,35 @@ def keff_T(weight_frac_old, weight_frac_new, dt,T = 280, avgdensity = False):
 
 
 
+savepath = r'/home/candifloos/Reaktorfysik/Figurer//'
 
 V = 4 / 3 * np.pi * (inches_to_cm(16))**3     #cm^3
-FR = 25236                      #cm^3/s, 400 gps
+FR = 25236 /400                     #cm^3/s, 400 gps -> 1 gps måsek
 old = 10.4 /1000
-new = 9 /1000
+new = 10 /1000
 
+print(f'Volume = {round(V,0)} cm^3')
+print(f'Flowrate = {round(FR,0)} cm^3/s')
+print(f'Time for full fuel replacement = {round(V/FR, 0)} s')
+# exit()
 
 dts = np.linspace(1, V / FR, 5)
-k_effs = np.array([keff_T(weight_frac_old = old, weight_frac_new = new, dt = dt, avgdensity = False)[0] for dt in dts])
-k_effs_2 = np.array([keff_T(weight_frac_old = old, weight_frac_new = new, dt = dt, avgdensity = True)[0] for dt in dts])
+k_effs, k_effs_err = np.array([keff_T(weight_frac_old = old, weight_frac_new = new, dt = dt, avgdensity = False)[:2] for dt in dts]).T
+k_effs_2, k_effs_err_2 = np.array([keff_T(weight_frac_old = old, weight_frac_new = new, dt = dt, avgdensity = True)[:2] for dt in dts]).T
 
 fig, ax = plt.subplots()
 ax.set(xlabel = 'Time [s]', ylabel = 'k-effective', title = f'k-effective time dependence, {round(old * 100, 2)} -> {round(new * 100, 2)} % uranium concentration')
-ax.plot(dts, k_effs, marker='o', linestyle='-', label = 'Split')
-ax.plot(dts, k_effs_2, marker='o', linestyle='-', label = 'Average density')
+# ax.plot(dts, k_effs, marker='o', linestyle='-', label = 'Split')
+# ax.plot(dts, k_effs_2, marker='o', linestyle='-', label = 'Average density')
 ax.grid(True)
+
+ax.errorbar(dts, k_effs, yerr = k_effs_err, marker='o', linestyle='-', label = 'Split', capsize = 3)
+ax.errorbar(dts, k_effs_2, yerr = k_effs_err_2, marker='o', linestyle='-', label = 'Average density', capsize = 3)
 
 
 
 ax.legend()
+plt.savefig(savepath + 'Fuel flow.png', bbox_inches='tight')
+
+
 plt.show()

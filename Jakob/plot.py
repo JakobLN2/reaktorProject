@@ -1,7 +1,8 @@
 import openmc
 import numpy as np
-import matplotlib.pyplot as plt
 import matplotlib
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
 import scipy.interpolate as scint
 plt.rc("axes", labelsize=30, titlesize=32)   # skriftstørrelse af xlabel, ylabel og title
 plt.rc("xtick", labelsize=26, top=True, direction="in")  # skriftstørrelse af ticks, vis også ticks øverst og vend ticks indad
@@ -60,10 +61,9 @@ g_per_kg = 10.4                             #of uranium to heavy water
 weight_frac = 10.4/1000
 D2O_frac = 235 / (20) / weight_frac
 print(D2O_frac)
-exit()
 
 fuel = openmc.Material(name='fuel solution')
-fuel.set_density('g/cm3', 0.8443)            # assume same density as pure D₂O
+fuel.set_density('g/cm3', 0.8443 )#+ weight_frac)            # assume same density as pure D₂O
 fuel.add_nuclide('H2', D2O_frac * 2, 'ao')
 fuel.add_nuclide('O16', D2O_frac + 6, 'ao')
 # uranium                       
@@ -72,15 +72,11 @@ fuel.add_nuclide('U238', 0.07, 'ao')
 fuel.add_element('S', 1, 'ao')
 
 
-
-
-
-
 clad_inner = openmc.Sphere(r = inches_to_cm(16))
 clad_outer = openmc.Sphere(r = inches_to_cm(16 + 5/16))    
 PV_inner = openmc.Sphere(r = inches_to_cm(30))              
 PV_outer = openmc.Sphere(r = inches_to_cm(30 + 4.4), boundary_type = 'vacuum')      #base er apparently at alle lag er transmissive som boundary men kan ikke have transmissive boundary som yderste, skal være periodic, reflective eller vacuum    
-
+                                                                                    #Hvis man bruger reflective ligger de for some reason meget tættere?
 
 
 fuel_regions = [0]*4
@@ -104,7 +100,7 @@ fuel_regions = [0] * N; fuel_cells = [0] * N; fuels = [0] * N
 for i in range(N):
     t_i = T_grad(0.5*(t - b)/N + ys[i])
     fuels[i] = fuel.clone()
-    fuels[i].set_density('g/cm3', rho(100,t_i))
+    fuels[i].set_density('g/cm3', rho(100,t_i) + weight_frac)
     fuel_regions[i] = -clad_inner & +splits[i] & -splits[i + 1]
     fuel_cells[i] = openmc.Cell(name=f'fuel{i}', fill=fuels[i], region=fuel_regions[i])
     
@@ -227,7 +223,7 @@ fuel_regions = [0] * N; fuel_cells = [0] * N; fuels = [0] * N
 for i in range(N):
     t_i = T_grad(0.5*(t - b)/N + ys[i])
     fuels[i] = fuel.clone()
-    fuels[i].set_density('g/cm3', rho(100,t_i))
+    fuels[i].set_density('g/cm3', rho(100,t_i) + weight_frac)
     fuel_regions[i] = -clad_inner & +splits[i] & -splits[i + 1]
     fuel_cells[i] = openmc.Cell(name=f'fuel{i}', fill=fuels[i], region=fuel_regions[i])
     

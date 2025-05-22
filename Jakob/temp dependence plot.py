@@ -14,7 +14,7 @@ plt.rcParams["font.size"] = "20"
 plt.rcParams["figure.figsize"] = (16,8)
 
 
-path = r"/home/jakobln/devel/projects/reaktorfysik/reaktorProject/Jakob/"
+path = r"/home/candifloos/Reaktorfysik/reaktorProject/Jakob//"
 
 ts = np.loadtxt(path + "PT dependence data.txt", max_rows=1)
 ps = np.loadtxt(path + "PT dependence data.txt", usecols=[0],skiprows=1)
@@ -43,4 +43,8 @@ print(f"temperature coefficient rho = {p_opt[0]:.6f} +/- {np.sqrt(p_cov[0][0]):.
 
 ax.legend(loc = "lower left")
 ax.grid()
+
+savepath = r'/home/candifloos/Reaktorfysik/Figurer//'
+plt.savefig(savepath + 'Temperature coefficient.png', bbox_inches='tight')
+
 plt.show()

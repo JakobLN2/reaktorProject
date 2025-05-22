@@ -2,7 +2,7 @@
 import openmc
 import numpy as np
 import matplotlib
-matplotlib.use("WebAgg")
+matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 import scipy.interpolate as scint
 plt.rc("axes", labelsize=30, titlesize=32)   # skriftstørrelse af xlabel, ylabel og title
@@ -58,4 +58,18 @@ print(Z_plot)
 ax.set_ylim(4,165)
 savepath = r'/home/candifloos/Reaktorfysik/Figurer//'
 plt.savefig(savepath + 'Density temperature pressure dependency.png', bbox_inches='tight')
+
+fig, ax = plt.subplots()
+# idx = [np.where(130 < P < 140) for P in P_plot]
+# idx = [np.where(P) for P in P_plot]
+idx = [nr for nr,P in enumerate(P_plot) if 130 < P < 140]
+# for P in P_plot:
+#     if P 
+#     print(P)
+# [print(P) for P in P_plot]
+solid_mask = np.where(Z_plot[: , idx[0]] > 0.65)
+ax.scatter(T_plot[solid_mask], Z_plot[: , idx[0]][solid_mask])
+
+ax.set(xlabel = "Temperature [C]", ylabel = 'Heavy water density [g/cm^3]', xlim = [258,300], ylim = [0.79, 0.89])   #xlim gør lidt masken fra tidliger useless xd
+
 plt.show()
