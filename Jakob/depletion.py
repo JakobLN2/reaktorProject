@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
 import scipy.interpolate as scint
+import json
 
 
 matplotlib.use('TkAgg')
@@ -54,6 +55,8 @@ D2O.volume = 4.0/3.0 * np.pi * (inches_to_cm(30)**3 - inches_to_cm(16 + 5/16)**3
 D2O.add_nuclide('H2', 2, 'wo')
 D2O.add_nuclide('O16', 1, 'wo')
 
+geom_dic = {}
+
 def makeGeometry(P, T):
     # ——— Uranium fuel ———
     weight_frac = 10.4/1000
@@ -69,6 +72,7 @@ def makeGeometry(P, T):
     fuel.add_nuclide('U238', 0.07, 'ao')
     fuel.add_element('S', 1, 'ao')
     fuel.depletable = True
+    geom_dic["fuel volume"] = fuel.volume #in cm
 
 
     mats = openmc.Materials([SS304, zirconium, D2O, fuel])
@@ -138,7 +142,7 @@ def keff_T(P, T):
     print(f"Estimated k-effective = {mean_keff:.5f} ± {std_keff:.5f}")
     return mean_keff, std_keff, k_gen
 
-print(keff_T(150,300))
+# print(keff_T(150,300))
 
 
 path_deplete = r"/home/jakobln/devel/projects/reaktorfysik/data/chain_casl_pwr.xml"
@@ -148,11 +152,12 @@ model = makeModel(120, 280)
 model.export_to_model_xml(path + "model.xml")
 operator = openmc.deplete.CoupledOperator(model, path_deplete)
 
-pow = 1e6 #W
+pow = 5e6 #W
+geom_dic["power"] = pow/1e6
 
 
-burnup_steps = np.array([1e-4, 0.001, 0.01, 0.01, 0.01, 0.01, 0.05, 0.05, 0.05, 0.05, 0.1, 0.1, 0.2,0.2,0.2,0.2,0.2,0.2,0.2])
-# burnup_steps = np.array([0.1, 0.1, 0.1])
+burnup_steps = np.array([1e-4, 0.001, 0.01, 0.01, 0.01, 0.01, 0.05, 0.05, 0.05, 0.05, 0.1, 0.1, 0.2,0.2,0.2,0.2,0.2,0.2,0.2,1,1,1,2])
+# burnup_steps = np.array([0.5, 0.5])
 
 integrator = openmc.deplete.PredictorIntegrator(operator, timesteps=burnup_steps,
                                                 power=pow,timestep_units='a')
@@ -161,27 +166,17 @@ results = openmc.deplete.Results.from_hdf5("./depletion_results.h5")
 time, k = results.get_keff()
 time /= (24 * 60 * 60* 365.25)  #seconds to years
 
-fig, ax = plt.subplots()
-ax.errorbar(time, k[:, 0], yerr=k[:, 1])
-ax.set(xlabel = 'Time [yr]', ylabel = '$k_{eff}$')
-plt.savefig(path + "Depletion keff depletion.png", bbox_inches="tight")
+depletion_results = {"t": list(time), "k": list(k[:,0]), "kerr": list(k[:,1])}
 
-_time, u235 = results.get_atoms("4", "U235",nuc_units='atom/b-cm') #we call it _time, because we already have a time variable in the correct day units which we intend to use
-_time, cs137 = results.get_atoms("4", "Cs137",nuc_units='atom/b-cm')
-_time, xe135 = results.get_atoms("4", "Xe135",nuc_units='atom/b-cm')
 
-fig, ax = plt.subplots()
-ax.plot(time, u235, label="U235")
-ax.plot(time, cs137, label="Cs137")
-ax.plot(time, xe135, label="Xe135")
-ax.set(xlabel = "Time [yr]", ylabel = "Atom concentration (atom/b-cm)", title="Fuel populations", yscale="linear")
-ax.legend(loc = "upper right")
-plt.savefig(path + "Depletion fuel populations.png", bbox_inches="tight")
+_time, u235 = results.get_atoms("4", "U235",nuc_units='atoms') #we call it _time, because we already have a time variable in the correct day units which we intend to use
+_time, cs137 = results.get_atoms("4", "Cs137",nuc_units='atoms')
+_time, xe135 = results.get_atoms("4", "Xe135",nuc_units='atoms')
 
-fig, ax = plt.subplots()
-ax.plot(time[:-1], np.diff(u235)/np.diff(time), label="U235")
-ax.set(xlabel = "Time [yr]", ylabel = "Change in atom concentration (atom/b-cm/yr)", title="Change in U235 concentration", yscale="linear")
-ax.legend(loc = "upper right")
-plt.savefig(path + "depletion rate.png", bbox_inches="tight")
+depletion_results["u235"] = list(u235)
+depletion_results["cs137"] = list(cs137)
+depletion_results["xe135"] = list(xe135)
+depletion_results.update(geom_dic)
 
-plt.show()
+with open(path + "depletion results.txt", "w") as file:
+    json.dump(depletion_results, file, indent=3, ensure_ascii = False)

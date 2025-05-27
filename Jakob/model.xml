@@ -40,12 +40,14 @@
       <nuclide name="Sn122" wo="0.0007131822271364948"/>
       <nuclide name="Sn124" wo="0.0009065085734797057"/>
     </material>
-    <material id="3" name="moderator slurry" volume="1555377.8258527862">
-      <density units="g/cm3" value="0.8362742310458445"/>
-      <nuclide name="H2" wo="2"/>
-      <nuclide name="O16" wo="1"/>
+    <material depletable="true" id="3" name="moderator slurry" volume="1555377.8258527862">
+      <density units="g/cm3" value="1.3312375435175552"/>
+      <nuclide name="H2" wo="0.2"/>
+      <nuclide name="O16" wo="0.8827586206896552"/>
+      <nuclide name="Th230" wo="0.00011896334737121309"/>
+      <nuclide name="Th232" wo="0.5998810366526288"/>
     </material>
-    <material depletable="true" id="4" name="fuel solution" volume="281157.52209779795">
+    <material id="4" name="fuel solution" volume="281157.52209779795">
       <density units="g/cm3" value="0.8362742310458445"/>
       <nuclide ao="2259.6153846153848" name="H2"/>
       <nuclide ao="1135.8076923076924" name="O16"/>
@@ -58,14 +60,14 @@
     </material>
   </materials>
   <geometry>
-    <cell id="5" material="1" name="blast shield" region="7 -8" universe="2"/>
-    <cell id="6" material="2" name="clad (Zr)" region="5 -6" universe="2"/>
-    <cell id="7" material="3" name="moderator" region="6 -7" universe="2"/>
-    <cell id="8" material="4" name="fuel" region="-5" universe="2"/>
-    <surface coeffs="0.0 0.0 0.0 40.64" id="5" type="sphere"/>
-    <surface coeffs="0.0 0.0 0.0 41.43375" id="6" type="sphere"/>
-    <surface coeffs="0.0 0.0 0.0 76.2" id="7" type="sphere"/>
-    <surface boundary="vacuum" coeffs="0.0 0.0 0.0 87.37599999999999" id="8" type="sphere"/>
+    <cell id="1" material="1" name="blast shield" region="3 -4" universe="1"/>
+    <cell id="2" material="2" name="clad (Zr)" region="1 -2" universe="1"/>
+    <cell id="3" material="3" name="moderator" region="2 -3" universe="1"/>
+    <cell id="4" material="4" name="fuel" region="-1" universe="1"/>
+    <surface coeffs="0.0 0.0 0.0 40.64" id="1" type="sphere"/>
+    <surface coeffs="0.0 0.0 0.0 41.43375" id="2" type="sphere"/>
+    <surface coeffs="0.0 0.0 0.0 76.2" id="3" type="sphere"/>
+    <surface boundary="vacuum" coeffs="0.0 0.0 0.0 87.37599999999999" id="4" type="sphere"/>
   </geometry>
   <settings>
     <run_mode>eigenvalue</run_mode>
@@ -75,7 +77,7 @@
     <temperature_default>600</temperature_default>
   </settings>
   <tallies>
-    <tally id="2" name="keff">
+    <tally id="1" name="keff">
       <scores>kappa-fission</scores>
       <estimator>analog</estimator>
     </tally>

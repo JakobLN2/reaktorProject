@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
 import scipy.interpolate as scint
-
+import json
 
 matplotlib.use('TkAgg')
 plt.rc("axes", labelsize=30, titlesize=32)   # skriftstørrelse af xlabel, ylabel og title
@@ -35,6 +35,9 @@ rho_ThO2 = 10 #g/cm^3
 
 mass_ThO2 = 0
 
+geom_dic = {"rho_ThO2": rho_ThO2}
+
+
 
 SS304 = openmc.Material(1, name='SS304')
 SS304.set_density('g/cc', 8.03)
@@ -53,6 +56,7 @@ zirconium.set_density('g/cm3', 6.6)
 th_weight = 0.6 #kg Th / kg D2O
 thO2_weight = (1 + 32/232) * th_weight #kg ThO2 / kg D2O
 rho_tot = lambda p,t: (1 + thO2_weight)/(1/rho(p,t) + thO2_weight/rho_ThO2) #assumes mixing with V = V1 + V2 (yikes)
+geom_dic["rho_tot"] = rho_tot(120,280)
 
 # ——— Heavy water moderator (D₂O) ———  
 D2O = openmc.Material(3, name='moderator slurry')
@@ -61,9 +65,12 @@ D2O.volume = 4.0/3.0 * np.pi * (inches_to_cm(30)**3 - inches_to_cm(16 + 5/16)**3
 D2O.add_nuclide('H2', 4/20, 'wo')
 D2O.add_nuclide('O16', 16/20 + 32/232*th_weight, 'wo')
 D2O.add_element('Th', th_weight, 'wo')
+geom_dic["blanket_volume"] = D2O.volume
 
 mass_moderator = D2O.volume * rho_tot(120, 280)
 mass_ThO2 = mass_moderator * th_weight/(th_weight + 32/232 + 1)
+geom_dic["m_ThO2"] = mass_ThO2
+geom_dic["m_blanket"] = mass_moderator
 
 def makeGeometry(P, T):
     # ——— Uranium fuel ———
@@ -79,7 +86,8 @@ def makeGeometry(P, T):
     fuel.add_nuclide('U235', 0.93, 'ao') 
     fuel.add_nuclide('U238', 0.07, 'ao')
     fuel.add_element('S', 1, 'ao')
-    fuel.depletable = True
+    fuel.depletable = False
+    geom_dic["fuel_volume"] = fuel.volume
 
 
     mats = openmc.Materials([SS304, zirconium, D2O, fuel])
@@ -149,7 +157,7 @@ def keff_T(P, T):
     print(f"Estimated k-effective = {mean_keff:.5f} ± {std_keff:.5f}")
     return mean_keff, std_keff, k_gen
 
-print(keff_T(150,300))
+# print(keff_T(150,300)) #For some reason this is required when the relevant xml files arent created? integrator apparantly wants the files before it starts
 
 
 path_deplete = r"/home/jakobln/devel/projects/reaktorfysik/data/chain_casl_pwr.xml"
@@ -160,67 +168,75 @@ model.export_to_model_xml(path + "model.xml")
 operator = openmc.deplete.CoupledOperator(model, path_deplete)
 
 pow = 5e6 #W
+geom_dic["power"] = pow/1e6
 
 
-burnup_steps = np.array([1e-4, 0.001, 0.001, 0.001, 0.001, 0.01, 0.01, 0.01, 0.01, 0.05, 0.05, 0.05, 0.05, 0.1, 0.1, 0.1, 0.1, 0.5, 0.5, 0.5, 0.5, 2, 2, 2, 4, 10])
-# burnup_steps = np.array([0.1, 0.1])
+burnup_steps = np.array([1e-4, 0.001, 0.001, 0.001, 0.001, 0.01, 0.01, 0.01, 0.01, 0.05, 0.05, 0.05, 0.05, 0.1, 0.1, 0.1, 0.1, 0.5, 0.5, 0.5, 0.5, 2, 2, 2])
+# burnup_steps = np.array([0.1, 0.1, 0.1])
 
 integrator = openmc.deplete.PredictorIntegrator(operator, timesteps=burnup_steps,
                                                 power=pow,timestep_units='a')
 integrator.integrate()
 results = openmc.deplete.Results.from_hdf5("./depletion_results.h5")
 time, k = results.get_keff()
-time /= (24 * 60 * 60* 365.25)  #seconds to years
-
-fig, ax = plt.subplots()
-ax.errorbar(time, k[:, 0], yerr=k[:, 1])
-ax.set(xlabel = 'Time [yr]', ylabel = '$k_{eff}$')
-plt.savefig(path + "keff depletion.png", bbox_inches="tight")
-
-_time, th232 = results.get_atoms("3", "Th232",nuc_units='atom/b-cm') 
-_time, u235 = results.get_atoms("3", "U235",nuc_units='atom/b-cm') #we call it _time, because we already have a time variable in the correct day units which we intend to use
-_time, u233 = results.get_atoms("3", "U233",nuc_units='atom/b-cm') 
-_time, pu239 = results.get_atoms("3", "Pu239",nuc_units='atom/b-cm')
-_time, cs137 = results.get_atoms("3", "Cs137",nuc_units='atom/b-cm')
-_time, xe135 = results.get_atoms("3", "Xe135",nuc_units='atom/b-cm')
+time /= (24 * 60 * 60 * 365.25)  #seconds to years
 
 
+# _time, th232 = results.get_atoms("3", "Th232",nuc_units='atom/b-cm') 
+# _time, u235 = results.get_atoms("3", "U235",nuc_units='atom/b-cm') #we call it _time, because we already have a time variable in the correct day units which we intend to use
+# _time, u233 = results.get_atoms("3", "U233",nuc_units='atom/b-cm') 
+# _time, pu239 = results.get_atoms("3", "Pu239",nuc_units='atom/b-cm')
+# _time, cs137 = results.get_atoms("3", "Cs137",nuc_units='atom/b-cm')
+# _time, xe135 = results.get_atoms("3", "Xe135",nuc_units='atom/b-cm')
 
-print(f"mass of thorium in blanket: {mass_ThO2:.2f} g")
-gamma = th232[0]/mass_ThO2
-ms_u233 = u233/gamma*1e-3
-
-fig, ax = plt.subplots()
-ax.plot(time, th232, label="Th232")
-ax.plot(time, u235, label="U235")
-ax.plot(time, u233, label="U233")
-ax.plot(time, pu239, label="Pu239")
-ax.plot(time, cs137, label="Cs137")
-ax.plot(time, xe135, label="Xe135")
-ax.set(xlabel = "Time [yr]", ylabel = "Atom concentration (atom/b-cm)", title="Blanket population", yscale="linear")
-ax.legend(loc = "upper right")
-plt.savefig(path + "breeding populations.png", bbox_inches="tight")
-
-
-fig, ax = plt.subplots()
-ax.plot(time, ms_u233, label="U233")
-ax.set(xlabel = "Time [yr]", ylabel = "Mass [kg]", title="Bred mass", yscale="linear")
-ax.legend(loc = "lower right")
-plt.savefig(path + "bred mass.png", bbox_inches="tight")
+depletion_results = {"t": list(time), "k": list(k[:,0]), "kerr": list(k[:,1])}
+nucs = ["Th232", "U235", "U233", "Pu239", "Cs137", "Xe135"]
+for nuc in nucs:
+    depletion_results[nuc.lower()] = list(results.get_atoms("3", nuc,nuc_units='atoms')[1])
+depletion_results.update(geom_dic)
+with open(path + "thorium breeding results.txt", "w") as file:
+    json.dump(depletion_results, file, indent=3, ensure_ascii=False)
 
 
-_time, u235 = results.get_atoms("4", "U235",nuc_units='atom/b-cm') #we call it _time, because we already have a time variable in the correct day units which we intend to use
-_time, cs137 = results.get_atoms("4", "Cs137",nuc_units='atom/b-cm')
-_time, xe135 = results.get_atoms("4", "Xe135",nuc_units='atom/b-cm')
+# print(f"mass of thorium in blanket: {mass_ThO2:.2f} g")
+# gamma = th232[0]/mass_ThO2
+# ms_u233 = u233/gamma*1e-3
 
-fig, ax = plt.subplots()
-ax.plot(time, u235, label="U235")
-ax.plot(time, cs137, label="Cs137")
-ax.plot(time, xe135, label="Xe135")
-ax.set(xlabel = "Time [yr]", ylabel = "Atom concentration (atom/b-cm)", title="Blanket population", yscale="linear")
-ax.legend(loc = "upper right")
-plt.savefig(path + "breeding populations.png", bbox_inches="tight")
-plt.savefig(path + "fuel populations.png", bbox_inches="tight")
+# fig, ax = plt.subplots()
+# ax.errorbar(time, k[:, 0], yerr=k[:, 1])
+# ax.set(xlabel = 'Time [yr]', ylabel = '$k_{eff}$')
+# plt.savefig(path + "keff depletion.png", bbox_inches="tight")
+
+# fig, ax = plt.subplots()
+# ax.plot(time, th232, label="Th232")
+# ax.plot(time, u235, label="U235")
+# ax.plot(time, u233, label="U233")
+# ax.plot(time, pu239, label="Pu239")
+# ax.plot(time, cs137, label="Cs137")
+# ax.plot(time, xe135, label="Xe135")
+# ax.set(xlabel = "Time [yr]", ylabel = "Atom concentration (atom/b-cm)", title="Blanket population", yscale="linear")
+# ax.legend(loc = "upper right")
+# plt.savefig(path + "breeding populations.png", bbox_inches="tight")
 
 
-plt.show()
+# fig, ax = plt.subplots()
+# ax.plot(time, ms_u233, label="U233")
+# ax.set(xlabel = "Time [yr]", ylabel = "Mass [kg]", title="Bred mass", yscale="linear")
+# ax.legend(loc = "lower right")
+# plt.savefig(path + "bred mass.png", bbox_inches="tight")
+
+
+# _time, u235 = results.get_atoms("4", "U235",nuc_units='atom/b-cm') #we call it _time, because we already have a time variable in the correct day units which we intend to use
+# _time, cs137 = results.get_atoms("4", "Cs137",nuc_units='atom/b-cm')
+# _time, xe135 = results.get_atoms("4", "Xe135",nuc_units='atom/b-cm')
+
+# fig, ax = plt.subplots()
+# ax.plot(time, u235, label="U235")
+# ax.plot(time, cs137, label="Cs137")
+# ax.plot(time, xe135, label="Xe135")
+# ax.set(xlabel = "Time [yr]", ylabel = "Atom concentration (atom/b-cm)", title="Blanket population", yscale="linear")
+# ax.legend(loc = "upper right")
+# plt.savefig(path + "fuel populations.png", bbox_inches="tight")
+
+
+# plt.show()
