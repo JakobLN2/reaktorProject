@@ -1,26 +1,8 @@
 <?xml version='1.0' encoding='utf-8'?>
 <model>
   <materials>
-    <cross_sections>/home/candifloos/Reaktorfysik/Python/RFP/Data/jeff-3.3-hdf5/cross_sections.xml</cross_sections>
-    <material id="2" name="zirconium" temperature="900">
-      <density units="g/cm3" value="6.6"/>
-      <nuclide name="Zr90" wo="0.5070611750923316"/>
-      <nuclide name="Zr91" wo="0.11180887453100784"/>
-      <nuclide name="Zr92" wo="0.1727810146362816"/>
-      <nuclide name="Zr94" wo="0.17891104342343414"/>
-      <nuclide name="Zr96" wo="0.029437892316944894"/>
-      <nuclide name="Sn112" wo="0.00013715892931965404"/>
-      <nuclide name="Sn114" wo="9.499085572042323e-05"/>
-      <nuclide name="Sn115" wo="4.936454378539518e-05"/>
-      <nuclide name="Sn116" wo="0.002129403252570527"/>
-      <nuclide name="Sn117" wo="0.0011344627635425028"/>
-      <nuclide name="Sn118" wo="0.003608256495100963"/>
-      <nuclide name="Sn119" wo="0.0012905970053650568"/>
-      <nuclide name="Sn120" wo="0.004936075353979278"/>
-      <nuclide name="Sn122" wo="0.0007131822271364948"/>
-      <nuclide name="Sn124" wo="0.0009065085734797057"/>
-    </material>
-    <material id="5" name="SS304">
+    <cross_sections>/home/jakobln/devel/projects/reaktorfysik/data/jeff-3.3-hdf5/cross_sections.xml</cross_sections>
+    <material id="1" name="SS304">
       <density units="g/cc" value="8.03"/>
       <nuclide name="Si28" wo="0.005512411036970206"/>
       <nuclide name="Si29" wo="0.00028990501756718373"/>
@@ -40,13 +22,31 @@
       <nuclide name="Ni62" wo="0.0038348223034871697"/>
       <nuclide name="Ni64" wo="0.00100815041539667"/>
     </material>
-    <material id="6" name="heavy water">
-      <density units="g/cm3" value="1.1056"/>
-      <nuclide ao="2.0" name="H2"/>
-      <nuclide ao="1.0" name="O16"/>
+    <material id="2" name="zirconium" temperature="600">
+      <density units="g/cm3" value="6.6"/>
+      <nuclide name="Zr90" wo="0.49945525746594666"/>
+      <nuclide name="Zr91" wo="0.11013174141304272"/>
+      <nuclide name="Zr92" wo="0.17018929941673736"/>
+      <nuclide name="Zr94" wo="0.17622737777208264"/>
+      <nuclide name="Zr96" wo="0.02899632393219072"/>
+      <nuclide name="Sn112" wo="0.00013715892931965404"/>
+      <nuclide name="Sn114" wo="9.499085572042323e-05"/>
+      <nuclide name="Sn115" wo="4.936454378539518e-05"/>
+      <nuclide name="Sn116" wo="0.002129403252570527"/>
+      <nuclide name="Sn117" wo="0.0011344627635425028"/>
+      <nuclide name="Sn118" wo="0.003608256495100963"/>
+      <nuclide name="Sn119" wo="0.0012905970053650568"/>
+      <nuclide name="Sn120" wo="0.004936075353979278"/>
+      <nuclide name="Sn122" wo="0.0007131822271364948"/>
+      <nuclide name="Sn124" wo="0.0009065085734797057"/>
     </material>
-    <material depletable="true" id="7" name="fuel solution">
-      <density units="g/cm3" value="1.1056"/>
+    <material id="3" name="moderator slurry" volume="1555377.8258527862">
+      <density units="g/cm3" value="0.8362742310458445"/>
+      <nuclide name="H2" wo="2"/>
+      <nuclide name="O16" wo="1"/>
+    </material>
+    <material depletable="true" id="4" name="fuel solution" volume="281157.52209779795">
+      <density units="g/cm3" value="0.8362742310458445"/>
       <nuclide ao="2259.6153846153848" name="H2"/>
       <nuclide ao="1135.8076923076924" name="O16"/>
       <nuclide ao="0.93" name="U235"/>
@@ -58,10 +58,10 @@
     </material>
   </materials>
   <geometry>
-    <cell id="5" material="7" name="fuel" region="-5" universe="2"/>
+    <cell id="5" material="1" name="blast shield" region="7 -8" universe="2"/>
     <cell id="6" material="2" name="clad (Zr)" region="5 -6" universe="2"/>
-    <cell id="7" material="6" name="moderator" region="6 -7" universe="2"/>
-    <cell id="8" material="5" name="blast shield" region="7 -8" universe="2"/>
+    <cell id="7" material="3" name="moderator" region="6 -7" universe="2"/>
+    <cell id="8" material="4" name="fuel" region="-5" universe="2"/>
     <surface coeffs="0.0 0.0 0.0 40.64" id="5" type="sphere"/>
     <surface coeffs="0.0 0.0 0.0 41.43375" id="6" type="sphere"/>
     <surface coeffs="0.0 0.0 0.0 76.2" id="7" type="sphere"/>
@@ -69,9 +69,9 @@
   </geometry>
   <settings>
     <run_mode>eigenvalue</run_mode>
-    <particles>20000</particles>
-    <batches>20</batches>
-    <inactive>5</inactive>
+    <particles>2000</particles>
+    <batches>5</batches>
+    <inactive>2</inactive>
     <temperature_default>600</temperature_default>
   </settings>
   <tallies>

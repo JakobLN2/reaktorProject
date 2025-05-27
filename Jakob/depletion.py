@@ -31,10 +31,6 @@ data = np.loadtxt(path + "russianWater.txt",skiprows=1,usecols=range(1,len(T)+1)
 f_2 = scint.RegularGridInterpolator((P,T), data, method="linear")
 
 rho = lambda P,T: f_1((P,T))/1000 if T < 275 else 1/f_2((P,T))
-rho_ThO2 = 10 #g/cm^3
-
-mass_ThO2 = 0
-
 
 SS304 = openmc.Material(1, name='SS304')
 SS304.set_density('g/cc', 8.03)
@@ -50,20 +46,13 @@ zirconium.add_element('Sn', 0.015, 'wo')
 zirconium.set_density('g/cm3', 6.6)
 
 
-th_weight = 0.6 #kg Th / kg D2O
-thO2_weight = (1 + 32/232) * th_weight #kg ThO2 / kg D2O
-rho_tot = lambda p,t: (1 + thO2_weight)/(1/rho(p,t) + thO2_weight/rho_ThO2) #assumes mixing with V = V1 + V2 (yikes)
 
 # ——— Heavy water moderator (D₂O) ———  
 D2O = openmc.Material(3, name='moderator slurry')
-D2O.set_density('g/cm3', rho_tot(120, 280))
+D2O.set_density('g/cm3', rho(120, 280))
 D2O.volume = 4.0/3.0 * np.pi * (inches_to_cm(30)**3 - inches_to_cm(16 + 5/16)**3)
-D2O.add_nuclide('H2', 4/20, 'wo')
-D2O.add_nuclide('O16', 16/20 + 32/232*th_weight, 'wo')
-D2O.add_element('Th', th_weight, 'wo')
-
-mass_moderator = D2O.volume * rho_tot(120, 280)
-mass_ThO2 = mass_moderator * th_weight/(th_weight + 32/232 + 1)
+D2O.add_nuclide('H2', 2, 'wo')
+D2O.add_nuclide('O16', 1, 'wo')
 
 def makeGeometry(P, T):
     # ——— Uranium fuel ———
@@ -159,11 +148,11 @@ model = makeModel(120, 280)
 model.export_to_model_xml(path + "model.xml")
 operator = openmc.deplete.CoupledOperator(model, path_deplete)
 
-pow = 5e6 #W
+pow = 1e6 #W
 
 
-burnup_steps = np.array([1e-4, 0.001, 0.001, 0.001, 0.001, 0.01, 0.01, 0.01, 0.01, 0.05, 0.05, 0.05, 0.05, 0.1, 0.1, 0.1, 0.1, 0.5, 0.5, 0.5, 0.5, 2, 2, 2, 4, 10])
-# burnup_steps = np.array([0.1, 0.1])
+burnup_steps = np.array([1e-4, 0.001, 0.01, 0.01, 0.01, 0.01, 0.05, 0.05, 0.05, 0.05, 0.1, 0.1, 0.2,0.2,0.2,0.2,0.2,0.2,0.2])
+# burnup_steps = np.array([0.1, 0.1, 0.1])
 
 integrator = openmc.deplete.PredictorIntegrator(operator, timesteps=burnup_steps,
                                                 power=pow,timestep_units='a')
@@ -175,39 +164,7 @@ time /= (24 * 60 * 60* 365.25)  #seconds to years
 fig, ax = plt.subplots()
 ax.errorbar(time, k[:, 0], yerr=k[:, 1])
 ax.set(xlabel = 'Time [yr]', ylabel = '$k_{eff}$')
-plt.savefig(path + "keff depletion.png", bbox_inches="tight")
-
-_time, th232 = results.get_atoms("3", "Th232",nuc_units='atom/b-cm') 
-_time, u235 = results.get_atoms("3", "U235",nuc_units='atom/b-cm') #we call it _time, because we already have a time variable in the correct day units which we intend to use
-_time, u233 = results.get_atoms("3", "U233",nuc_units='atom/b-cm') 
-_time, pu239 = results.get_atoms("3", "Pu239",nuc_units='atom/b-cm')
-_time, cs137 = results.get_atoms("3", "Cs137",nuc_units='atom/b-cm')
-_time, xe135 = results.get_atoms("3", "Xe135",nuc_units='atom/b-cm')
-
-
-
-print(f"mass of thorium in blanket: {mass_ThO2:.2f} g")
-gamma = th232[0]/mass_ThO2
-ms_u233 = u233/gamma*1e-3
-
-fig, ax = plt.subplots()
-ax.plot(time, th232, label="Th232")
-ax.plot(time, u235, label="U235")
-ax.plot(time, u233, label="U233")
-ax.plot(time, pu239, label="Pu239")
-ax.plot(time, cs137, label="Cs137")
-ax.plot(time, xe135, label="Xe135")
-ax.set(xlabel = "Time [yr]", ylabel = "Atom concentration (atom/b-cm)", title="Blanket population", yscale="linear")
-ax.legend(loc = "upper right")
-plt.savefig(path + "breeding populations.png", bbox_inches="tight")
-
-
-fig, ax = plt.subplots()
-ax.plot(time, ms_u233, label="U233")
-ax.set(xlabel = "Time [yr]", ylabel = "Mass [kg]", title="Bred mass", yscale="linear")
-ax.legend(loc = "lower right")
-plt.savefig(path + "bred mass.png", bbox_inches="tight")
-
+plt.savefig(path + "Depletion keff depletion.png", bbox_inches="tight")
 
 _time, u235 = results.get_atoms("4", "U235",nuc_units='atom/b-cm') #we call it _time, because we already have a time variable in the correct day units which we intend to use
 _time, cs137 = results.get_atoms("4", "Cs137",nuc_units='atom/b-cm')
@@ -217,10 +174,14 @@ fig, ax = plt.subplots()
 ax.plot(time, u235, label="U235")
 ax.plot(time, cs137, label="Cs137")
 ax.plot(time, xe135, label="Xe135")
-ax.set(xlabel = "Time [yr]", ylabel = "Atom concentration (atom/b-cm)", title="Blanket population", yscale="linear")
+ax.set(xlabel = "Time [yr]", ylabel = "Atom concentration (atom/b-cm)", title="Fuel populations", yscale="linear")
 ax.legend(loc = "upper right")
-plt.savefig(path + "breeding populations.png", bbox_inches="tight")
-plt.savefig(path + "fuel populations.png", bbox_inches="tight")
+plt.savefig(path + "Depletion fuel populations.png", bbox_inches="tight")
 
+fig, ax = plt.subplots()
+ax.plot(time[:-1], np.diff(u235)/np.diff(time), label="U235")
+ax.set(xlabel = "Time [yr]", ylabel = "Change in atom concentration (atom/b-cm/yr)", title="Change in U235 concentration", yscale="linear")
+ax.legend(loc = "upper right")
+plt.savefig(path + "depletion rate.png", bbox_inches="tight")
 
 plt.show()
