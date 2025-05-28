@@ -111,10 +111,21 @@ zircThickness = inches_to_cm(5/16)
 """
 All of this is just to plot it.
 """
+
+cutPlane1 = openmc.YPlane(y0=0,boundary_type='periodic') #This is the plane that cuts the geometry in half, so we can see the inside
+
+angle = np.pi/4
+
+cutPlane2 = openmc.Plane(a=np.tan(angle),B=-1,D=0,boundary_type="periodic")
+cutPlane1.periodic_surface = cutPlane2
+cutPlane2.periodic_surface = cutPlane1
+#slice = -cutPlane1 & -cutPlane2
+
+
 fuelGeometry = InnerGeometry(rBall,rCone1,coreOutlet,coreInlet,hTot,hTop,Inches=False)
 zircGeometry = InnerGeometry(rBall+zircThickness,rCone1+zircThickness/np.cos(np.pi/4),coreOutlet+zircThickness,coreInlet+zircThickness,hTot,hTop,Inches=False)
 fuelRegion = fuelGeometry.totRegion(outside=False)
-zircRegion = zircGeometry.totRegion(outside=False)&(~fuelRegion)
+zircRegion = zircGeometry.totRegion(outside=False)&(~fuelRegion)#&slice
 
 rBlanket = inches_to_cm(30)
 blanketGeometry = -openmc.Sphere(r=rBlanket)
@@ -132,12 +143,12 @@ rAir = inches_to_cm(74/2)
 airGeometry = -openmc.Sphere(r=rAir)
 airRegion = airGeometry & (~blanketRegion) & (~steelCladRegion) & (~carbSteelRegion) & (~fuelRegion) & (~zircRegion)
 rblastShield = rAir+inches_to_cm((1+5/8))
-blastShieldGeometry = -openmc.Sphere(r=rblastShield)
+blastShieldGeometry = -openmc.Sphere(r=rblastShield,boundary_type='vacuum')
 blastShieldRegion = blastShieldGeometry & (~airRegion) & (~blanketRegion) & (~steelCladRegion) & (~carbSteelRegion) & (~fuelRegion) & (~zircRegion)
 
 vacuumBound = -openmc.ZCylinder(r=rblastShield+0.1,boundary_type='vacuum')&+openmc.ZPlane(z0=-fuelGeometry.hBottom-0.1,boundary_type='vacuum')&-openmc.ZPlane(z0=fuelGeometry.hTop+0.1,boundary_type='vacuum') #Big cylinder of vacuum around the whole thing
-vacuumRegion = vacuumBound & (~airRegion) & (~blanketRegion) & (~steelCladRegion) & (~carbSteelRegion) & (~fuelRegion) & (~zircRegion) #Not sure if this is needed or not.
-
+#vacuumRegion = vacuumBound & (~airRegion) & (~blanketRegion) & (~steelCladRegion) & (~carbSteelRegion) & (~fuelRegion) & (~zircRegion) #Not sure if this is needed or not.
+slice = blastShieldGeometry
 
 D2O = openmc.Material(name='heavy water')
 D2O.set_density('g/cm3', 1.1056)
@@ -188,22 +199,26 @@ air.add_element('Ar', 0.0093, 'wo')
 
 vacuum = openmc.Material(name='vacuum')
 vacuum.set_density('g/cm3', 1e-50)
+vacuum.add_element('N', 0.7808, 'wo')
+vacuum.add_element('O', 0.2095, 'wo')
+vacuum.add_element('Ar', 0.0093, 'wo')
 
-mats = openmc.Materials([D2O,SS304,zirconium,S4340,air])
+
+mats = openmc.Materials([D2O,SS304,zirconium,S4340,air,vacuum])
 #mats.export_to_xml()
 # Export the geometry to XML
 
 
 
-cell_fuel      = openmc.Cell(name='fuel', fill=D2O, region=fuelRegion)
-cell_zirc      = openmc.Cell(name='zirc', fill=zirconium, region=zircRegion)
-cell_blanket   = openmc.Cell(name='blanket', fill=D2O, region=blanketRegion) 
-cell_steelClad = openmc.Cell(name='steelClad', fill=SS304, region=steelCladRegion) 
-cell_carbSteel = openmc.Cell(name='carbSteel', fill=S4340, region=carbSteelRegion) #TODO Material is wrong
-cell_air       = openmc.Cell(name='air', fill=air, region=airRegion)
-cell_blastShield = openmc.Cell(name='blastShield', fill=S4340, region=blastShieldRegion) #TODO Material is wrong
+cell_fuel      = openmc.Cell(name='fuel', fill=D2O, region=fuelRegion&slice)
+cell_zirc      = openmc.Cell(name='zirc', fill=zirconium, region=zircRegion&slice)
+cell_blanket   = openmc.Cell(name='blanket', fill=D2O, region=blanketRegion&slice) 
+cell_steelClad = openmc.Cell(name='steelClad', fill=SS304, region=steelCladRegion&slice) 
+cell_carbSteel = openmc.Cell(name='carbSteel', fill=S4340, region=carbSteelRegion&slice) #TODO Material is wrong
+cell_air       = openmc.Cell(name='air', fill=air, region=airRegion&slice)
+cell_blastShield = openmc.Cell(name='blastShield', fill=S4340, region=blastShieldRegion&slice) #TODO Material is wrong
 
-#cell_vacuum    = openmc.Cell(name='vacuum', fill=vacuum, region=vacuumRegion)
+#cell_vacuum    = openmc.Cell(name='vacuum', fill=vacuum, region=vacuumRegion&slice)
 
 root_univ = openmc.Universe(cells=[cell_fuel,cell_zirc,cell_blanket,cell_steelClad,cell_carbSteel,cell_air,cell_blastShield])
 geometry = openmc.Geometry(root_univ)
