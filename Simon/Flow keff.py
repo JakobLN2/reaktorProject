@@ -116,7 +116,7 @@ def makeGeometry(weight_frac_old, weight_frac_new, dt, T = 280, avgdensity = Fal
     dens = dens_water + dens_u
     print(f'{dens_water = }, {dens_u = }, {dens = }')
 
-    fuel.set_density('g/cm3', rho(120, T))
+    fuel.set_density('g/cm3', dens)
     fuel.add_nuclide('H2', D2O_frac * 2, 'ao')
     fuel.add_nuclide('O16', D2O_frac + 6, 'ao')
 
@@ -127,7 +127,7 @@ def makeGeometry(weight_frac_old, weight_frac_new, dt, T = 280, avgdensity = Fal
 
 
     fuel_old = openmc.Material(name='fuel solution')
-    fuel_old.set_density('g/cm3', rho(120, T))
+    fuel_old.set_density('g/cm3', rho(120, T) + weight_frac_old)
     fuel_old.add_nuclide('H2', D2O_frac_old * 2, 'ao')
     fuel_old.add_nuclide('O16', D2O_frac_old + 6, 'ao')
 
@@ -137,7 +137,7 @@ def makeGeometry(weight_frac_old, weight_frac_new, dt, T = 280, avgdensity = Fal
     
 
     fuel_new = openmc.Material(name='fuel solution')
-    fuel_new.set_density('g/cm3', rho(120, T))
+    fuel_new.set_density('g/cm3', rho(120, T) + weight_frac_new)
     fuel_new.add_nuclide('H2', D2O_frac_new * 2, 'ao')
     fuel_new.add_nuclide('O16', D2O_frac_new + 6, 'ao')
 
