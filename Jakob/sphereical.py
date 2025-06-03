@@ -50,7 +50,8 @@ D2O.add_nuclide('O16', 1.0, 'ao')
 
 g_per_kg = 10.4                             #of uranium to heavy water
 weight_frac = 10.4/1000
-D2O_frac = 235 / (20) / weight_frac
+# D2O_frac = 235 / (20) / weight_frac
+D2O_frac = 235/20 / weight_frac
 # print(D2O_frac)
 
 fuel = openmc.Material(name='fuel solution')
@@ -102,9 +103,6 @@ for i in range(N):
 mats = openmc.Materials([SS304, D2O, zirconium, *fuels])
 mats.cross_sections = r'/home/jakobln/devel/projects/reaktorfysik/data/jeff-3.3-hdf5/cross_sections.xml'
 
-
-# fuel_region = -clad_inner                                  #~10 g U per kg D2O, UO_2SO_4 in heavy water?
-# cell_fuel      = openmc.Cell(name='fuel', fill=fuel, region=fuel_region)
 
 core_vessel = +clad_inner & -clad_outer                    #zirconium alloy
 moderator_region = +clad_outer & -PV_inner                 #Heavy water

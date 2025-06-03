@@ -106,9 +106,9 @@ def makeModel(P, T):
 
     settings = openmc.Settings()
     settings.run_mode = 'eigenvalue'
-    settings.batches = 5
-    settings.inactive = 2
-    settings.particles = 2000
+    settings.batches = 12
+    settings.inactive = 3
+    settings.particles = 5000
     # settings.batches = 20
     # settings.inactive = 5
     # settings.particles = 20000
@@ -142,7 +142,7 @@ def keff_T(P, T):
     print(f"Estimated k-effective = {mean_keff:.5f} ± {std_keff:.5f}")
     return mean_keff, std_keff, k_gen
 
-# print(keff_T(150,300))
+print(keff_T(150,300))
 
 
 path_deplete = r"/home/jakobln/devel/projects/reaktorfysik/data/chain_casl_pwr.xml"
@@ -156,7 +156,7 @@ pow = 5e6 #W
 geom_dic["power"] = pow/1e6
 
 
-burnup_steps = np.array([1e-4, 0.001, 0.01, 0.01, 0.01, 0.01, 0.05, 0.05, 0.05, 0.05, 0.1, 0.1, 0.2,0.2,0.2,0.2,0.2,0.2,0.2,1,1,1,2])
+burnup_steps = np.array([1e-4, 0.001, 0.01, 0.01, 0.01, 0.01, 0.05, 0.05, 0.05, 0.05, 0.1, 0.1, 0.2,0.4, 0.5,0.5])
 # burnup_steps = np.array([0.5, 0.5])
 
 integrator = openmc.deplete.PredictorIntegrator(operator, timesteps=burnup_steps,

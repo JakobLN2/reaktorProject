@@ -74,7 +74,7 @@ geom_dic["m_blanket"] = mass_moderator
 
 def makeGeometry(P, T):
     # ——— Uranium fuel ———
-    weight_frac = 10.4/1000
+    weight_frac = 30/1000
     D2O_frac = 235 / (20) / weight_frac
 
     fuel = openmc.Material(4, name='fuel solution')
@@ -86,8 +86,11 @@ def makeGeometry(P, T):
     fuel.add_nuclide('U235', 0.93, 'ao') 
     fuel.add_nuclide('U238', 0.07, 'ao')
     fuel.add_element('S', 1, 'ao')
-    fuel.depletable = False
+    fuel.depletable = True
     geom_dic["fuel_volume"] = fuel.volume
+    geom_dic["core_mass"] = rho(P,T) * fuel.volume
+    geom_dic["fuel_mass"] = geom_dic["core_mass"] * 1/(1 + weight_frac)
+    geom_dic["heavy mass"] = (geom_dic["fuel_mass"] + geom_dic["m_ThO2"])*1e-3
 
 
     mats = openmc.Materials([SS304, zirconium, D2O, fuel])
@@ -121,9 +124,9 @@ def makeModel(P, T):
 
     settings = openmc.Settings()
     settings.run_mode = 'eigenvalue'
-    settings.batches = 5
-    settings.inactive = 2
-    settings.particles = 2000
+    settings.batches = 10
+    settings.inactive = 3
+    settings.particles = 5000
     # settings.batches = 20
     # settings.inactive = 5
     # settings.particles = 20000
@@ -157,7 +160,7 @@ def keff_T(P, T):
     print(f"Estimated k-effective = {mean_keff:.5f} ± {std_keff:.5f}")
     return mean_keff, std_keff, k_gen
 
-# print(keff_T(150,300)) #For some reason this is required when the relevant xml files arent created? integrator apparantly wants the files before it starts
+print(keff_T(150,300)) #For some reason this is required when the relevant xml files arent created? integrator apparantly wants the files before it starts
 
 
 path_deplete = r"/home/jakobln/devel/projects/reaktorfysik/data/chain_casl_pwr.xml"
@@ -168,14 +171,23 @@ model.export_to_model_xml(path + "model.xml")
 operator = openmc.deplete.CoupledOperator(model, path_deplete)
 
 pow = 5e6 #W
-geom_dic["power"] = pow/1e6
+geom_dic["power"] = pow/1e6 #MW
 
 
-burnup_steps = np.array([1e-4, 0.001, 0.001, 0.001, 0.001, 0.01, 0.01, 0.01, 0.01, 0.05, 0.05, 0.05, 0.05, 0.1, 0.1, 0.1, 0.1, 0.5, 0.5, 0.5, 0.5, 2, 2, 2])
-# burnup_steps = np.array([0.1, 0.1, 0.1])
+# burnup_steps = np.array([1e-4, 0.001, 0.01, 0.01, 0.01, 0.01, 0.05, 0.05, 0.05, 0.05, 0.1, 0.1, 0.2,0.5,1,1])
+# burnup_steps = np.array([1e-5,1e-5,1e-5,1e-5,1e-4,1e-4,1e-3,1e-3,1e-2,0.1,0.1,1,1])
+# burnup_steps = np.array([1,5,10,10, 30, 60])*mwd/geom_dic["heavy mass"]
 
+burnup_steps = np.array([0.001, 0.01, 0.1, 0.1, 0.1, 0.2, 0.2, 0.3, 0.2, 0.3])
 integrator = openmc.deplete.PredictorIntegrator(operator, timesteps=burnup_steps,
                                                 power=pow,timestep_units='a')
+# integrator.add_transfer_rate(geom_dic["fuel"], transfer_rate=2280, transfer_rate_units='1/a')
+
+# mwd = pow/365
+# burnup_steps = np.array([1,5,10,30,60,120,180])*mwd/geom_dic["heavy mass"]
+# integrator = openmc.deplete.PredictorIntegrator(operator, timesteps=burnup_steps,
+#                                                 power=pow,timestep_units='MWd/kg')
+
 integrator.integrate()
 results = openmc.deplete.Results.from_hdf5("./depletion_results.h5")
 time, k = results.get_keff()
@@ -188,15 +200,18 @@ time /= (24 * 60 * 60 * 365.25)  #seconds to years
 # _time, pu239 = results.get_atoms("3", "Pu239",nuc_units='atom/b-cm')
 # _time, cs137 = results.get_atoms("3", "Cs137",nuc_units='atom/b-cm')
 # _time, xe135 = results.get_atoms("3", "Xe135",nuc_units='atom/b-cm')
+_time, u235 = results.get_atoms("4", "U235",nuc_units='atoms') #we call it _time, because we already have a time variable in the correct day units which we intend to use
 
 depletion_results = {"t": list(time), "k": list(k[:,0]), "kerr": list(k[:,1])}
 nucs = ["Th232", "U235", "U233", "Pu239", "Cs137", "Xe135"]
 for nuc in nucs:
     depletion_results[nuc.lower()] = list(results.get_atoms("3", nuc,nuc_units='atoms')[1])
 depletion_results.update(geom_dic)
-with open(path + "thorium breeding results.txt", "w") as file:
+with open(path + "thorium breeding results2.txt", "w") as file:
     json.dump(depletion_results, file, indent=3, ensure_ascii=False)
 
+print(u235)
+print(results.get_atoms("3", "U233",nuc_units='atoms')[1][-1]/(results.get_atoms("4", "U235",nuc_units='atoms')[1][0] - results.get_atoms("4", "U235",nuc_units='atoms')[1][-1]))
 
 # print(f"mass of thorium in blanket: {mass_ThO2:.2f} g")
 # gamma = th232[0]/mass_ThO2
