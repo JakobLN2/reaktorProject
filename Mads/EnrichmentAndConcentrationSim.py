@@ -107,23 +107,42 @@ def makeFuel(rho,g_per_kgU,enrichment,fuel_id =None):
         
         fuel = openmc.Material(name='fuel solution',material_id =fuel_id)
         fuel.set_density('g/cm3', rho)
-        weightProcU = g_per_kgU/1000
+        U_weightFrac = g_per_kgU/1000
+        #waterMass = 20
+        #Umass = 235
+        
+        
+        
+        
         #Not sure what will happen, when we get mass of elements that aren't in fuel
         mU = openmc.data.atomic_weight("U") #Should take into account the enrichment, but this sould be an okay approximation
-        mD2O = 2*openmc.atomic_mass("H2") + openmc.atomic_mass("O16")
-        mUSO4 = openmc.data.atomic_weight("S") + 4*openmc.atomic_mass("O16")+mU
-        print("fuelcheck", mUSO4)
-        R = (mU/weightProcU -mUSO4 )/mD2O #Ratio between number of D20 and USO4
-        D2O_num_frac = R/(1+R)*100 #Mass fraction of D2O
-        USO4_num_frac = 1/(1+R)*100 #Mass fraction of USO4
         
-        fuel.add_nuclide("U238",percent=(1-enrichment/100)*USO4_num_frac/6,percent_type="ao")
-        fuel.add_nuclide("U235",percent=(enrichment/100)*USO4_num_frac/6,percent_type="ao")
-        fuel.add_element('S', percent=USO4_num_frac/6,percent_type="ao")
-        fuel.add_element("O",percent=4*USO4_num_frac/6,percent_type="ao")
+        mD2 = openmc.atomic_mass("H2")
+        mO = openmc.atomic_mass("O16")
+        mS = openmc.data.atomic_weight("S")
+        mD2O = 2*mD2 + mO
+        mUO2SO4 = mS + 6*mO+mU
+        
+        
 
-        fuel.add_nuclide("H2",percent=2*D2O_num_frac/3.,percent_type="ao")
-        fuel.add_nuclide("O16",percent=D2O_num_frac/3,percent_type="ao")
+        
+        D2O_weightFrac = 1-mUO2SO4/mU*U_weightFrac
+        O_weightFrac = 6*mO/mU*U_weightFrac+mO/mD2O*D2O_weightFrac #Oxygen from 
+        H2_weightFrac = mD2/mD2O*D2O_weightFrac
+        S_weightFrac = mS/mU*U_weightFrac
+
+        print("fuelcheck", mUO2SO4)
+        #R = (mU/weightProcU -mUO2SO4 )/mD2O #Ratio between number of D20 and USO4
+        #D2O_num_frac = R/(1+R)*100 #Mass fraction of D2O
+        #USO4_num_frac = 1/(1+R)*100 #Mass fraction of USO4
+        
+        fuel.add_nuclide("U238",percent=(1-enrichment/100)*U_weightFrac*100,percent_type="wo")
+        fuel.add_nuclide("U235",percent=(enrichment/100)*U_weightFrac*100,percent_type="wo")
+        fuel.add_element('S', percent=S_weightFrac*100,percent_type="wo")
+        fuel.add_nuclide("O16",percent=O_weightFrac*100,percent_type="wo")
+
+        fuel.add_nuclide("H2",percent=H2_weightFrac,percent_type="wo")
+        #fuel.add_nuclide("O16",percent=D2O_num_frac/3,percent_type="ao")
         
         return fuel
         #USO4_g_pr_kg = g_per_kgU* fuel.get_mass("U") /(fuel.get_mass("U") + fuel.get_mass("S") + 4*fuel.get_mass("O"))
@@ -146,27 +165,40 @@ def modifyFuel(fuel, rho, g_per_kgU, enrichment):
     for i in range(len(elements)):
         fuel.remove_element(elements[i])
     fuel.set_density('g/cm3', rho)
-    weightProcU = g_per_kgU/1000
-    #Not sure what will happen, when we get mass of elements that aren't in fuel
+    U_weightFrac = g_per_kgU/1000
+    #waterMass = 20
+    #Umass = 235
+        
+        
+        
+        
+        #Not sure what will happen, when we get mass of elements that aren't in fuel
     mU = openmc.data.atomic_weight("U") #Should take into account the enrichment, but this sould be an okay approximation
-    mD2O = 2*openmc.atomic_mass("H2") + openmc.atomic_mass("O16")
-    mUSO4 = openmc.data.atomic_weight("S") + 4*openmc.atomic_mass("O16")+mU
-    print("fuelcheck", mUSO4)
-    R = (mU/weightProcU -mUSO4 )/mD2O #Ratio between number of D20 and USO4
-    if np.isinf(R):
-        D2O_num_frac = 100.
-        USO4_num_frac = 0.
-    else:
-        D2O_num_frac = R/(1+R)*100 #Mass fraction of D2O
-        USO4_num_frac = 1/(1+R)*100 #Mass fraction of USO4
-    #fuel.add_element("U",percent=USO4_num_frac/6,percent_type="ao",enrichment=enrichment)
-    fuel.add_nuclide("U238",percent=(1-enrichment/100)*USO4_num_frac/6,percent_type="ao")
-    fuel.add_nuclide("U235",percent=(enrichment/100)*USO4_num_frac/6,percent_type="ao")
-    fuel.add_element('S', percent=USO4_num_frac/6,percent_type="ao")
+        
+    mD2 = openmc.atomic_mass("H2")
+    mO = openmc.atomic_mass("O16")
+    mS = openmc.data.atomic_weight("S")
+    mD2O = 2*mD2 + mO
+    mUO2SO4 = mS + 6*mO+mU
+        
+        
 
-    fuel.add_element("O",percent=4*USO4_num_frac/6,percent_type="ao")
-    fuel.add_nuclide("H2",percent=2*D2O_num_frac/3.,percent_type="ao")
-    fuel.add_nuclide("O16",percent=D2O_num_frac/3,percent_type="ao")
+        
+    D2O_weightFrac = 1-mUO2SO4/mU*U_weightFrac
+    O_weightFrac = 6*mO/mU*U_weightFrac+mO/mD2O*D2O_weightFrac #Oxygen from 
+    H2_weightFrac = mD2/mD2O*D2O_weightFrac
+    S_weightFrac = mS/mU*U_weightFrac
+
+    print("fuelcheck", mUO2SO4)
+
+        
+    fuel.add_nuclide("U238",percent=(1-enrichment/100)*U_weightFrac*100,percent_type="wo")
+    fuel.add_nuclide("U235",percent=(enrichment/100)*U_weightFrac*100,percent_type="wo")
+    fuel.add_element('S', percent=S_weightFrac*100,percent_type="wo")
+    fuel.add_nuclide("O16",percent=O_weightFrac*100,percent_type="wo")
+
+    fuel.add_nuclide("H2",percent=H2_weightFrac*100,percent_type="wo")
+        #fuel.add_nuclide("O16",percent=D2O_num_frac/3,percent_type="ao")
 
 
 
@@ -314,13 +346,13 @@ def kEffAtConcentrationAndEnrichments(model,concentrations,enrichments,rho,fuelI
 
     for i,conc in enumerate(concentrations):
         for j,enrich in enumerate(enrichments):
-            print("Current step: ", i)
+            print("Current step: ", i,j)
             modifyFuel(model.materials[fuelId],rho,conc,enrich) #This just needs to be garbage
             print(model.materials[fuelId])
             #model.materials[fuelId] = modifyFuel(model.materials[fuelId],rho,conc,enrich)
             #print(model.materials[fuelId])
             
-            sp_path = model.run()                        #at den returnerer en
+            sp_path = model.run(threads=8)                        #at den returnerer en
             with openmc.StatePoint(sp_path) as sp:
                 k_eff = sp.keff
                 
@@ -344,6 +376,7 @@ plt.savefig("git/reaktorProject/Mads/testfig2")
 
 settings = openmc.Settings()
 settings.run_mode = 'eigenvalue'
+
 settings.batches = 20
 settings.inactive = 5
 settings.particles = 20000
@@ -372,15 +405,19 @@ model = openmc.model.Model(
     tallies=openmc.Tallies([tally])
 )
 
+
+
+
 enrichments = np.linspace(1,100,50) #Enrichment can't go above 99.2 for some reason. Idk, have to investigate
 concentrations = np.linspace(1,100,50) #g_pr_kg
 
 
 
-
+#enrichments = [1,4]
+#concentrations = [1,5]
 kEffs, stdKEffs = kEffAtConcentrationAndEnrichments(model,concentrations,enrichments,rho(120, 280),3)
 fig,ax = plt.subplots(1,1)
-ax.contourf(enrichments,concentrations,kEffs)
+c = ax.contourf(enrichments,concentrations,kEffs)
 ax.set_xlabel("Enrichment")
 ax.set_ylabel("Concentration")
 ax.set_title("K eff vs Enrichment and Concentration")
@@ -390,6 +427,7 @@ ax.set_aspect('equal')
 
 np.savez("git/reaktorProject/Mads/Keffs",enrichments = enrichments,concentrations = concentrations, keffs = kEffs,stdKeffs = stdKEffs) #Save the data, so we can make a nice looking plot without having to run the entire simulation again.
 
+fig.colorbar(c, ax=ax, label='K eff')
 fig.savefig("git/reaktorProject/Mads/keffvsEnrichmentDebug")
 
 
